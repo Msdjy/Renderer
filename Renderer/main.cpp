@@ -76,7 +76,7 @@ int main()
 	light2->power = vec3(10,10,10);
 	
 	// model
-	Model* model = new Model("./objects/african_head.obj");
+	Model* model = new Model("./objects/african_head/african_head.obj");
 	
 	// shader
 	IShader* shader  = new BingPhoneShader();

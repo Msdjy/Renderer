@@ -200,6 +200,7 @@ static void triangle_draw(unsigned char* framebuffer, float* zbuffer, IShader* s
 
 static void model_draw(unsigned char* framebuffer, float* zbuffer, IShader* shader) {
     Model* model = shader->payload_shader.model;
+    
     for (int i = 0; i < model->nfaces(); i++) {
         for (int j = 0; j < 3; j++) {
             shader->payload_shader.vertexs[j] = model->vert(i, j);
