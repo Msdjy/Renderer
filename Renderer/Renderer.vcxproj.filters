@@ -39,6 +39,9 @@
     <ClCompile Include="shader\bingphone_shader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="core\object.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="platform\win32.h">
@@ -68,8 +71,12 @@
     <ClInclude Include="shader\shader.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="core\object.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

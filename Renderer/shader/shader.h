@@ -3,6 +3,7 @@
 #include "../core/camera.h"
 #include "../core/tgaimage.h"
 #include "../core/model.h"
+#include"../core/object.h"
 #include <vector>
 
 struct Light {
@@ -41,6 +42,8 @@ struct payload {
 	//model
 	Model* model;
 	TGAImage diffuse_map;
+
+	std::vector<Object*> objects;
 };
 
 

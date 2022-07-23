@@ -1,9 +1,19 @@
 ﻿#include"./camera.h"
 #include "../platform/win32.h"
 
-Camera::Camera(vec3 eye, vec3 target, vec3 up, float aspect) :
-	eye(eye), target(target), up(up), aspect(aspect)
-{}
+Camera::Camera(vec3 eye, vec3 target, vec3 up, float aspect, float fov) :
+	eye(eye), target(target), up(up), aspect(aspect), fov(fov)
+{
+	float pi_fov = fov / 180.0f * PI;
+	vec3 lookat = normalize(target - eye);
+	horizontal = normalize(cross(lookat, up));
+	vertical = normalize(cross(horizontal, lookat));
+
+	horizontal_len = screen_distance * tan(pi_fov / 2.0f) * aspect * 2;
+	vertical_len = screen_distance * tan(pi_fov / 2.0f) * 2;
+	// 光追，相机屏幕左上角的方向
+	left_top_dir =  -horizontal_len / 2 * horizontal + vertical_len / 2 * vertical + normalize(target - eye);
+}
 
 Camera::~Camera()
 {}
@@ -35,7 +45,7 @@ void updata_camera_pos(Camera& camera)
 	camera.eye[2] = camera.target[2] + radius * sin(theta) * cos(phi);
 
 	// for mouse right button
-	factor = radius * (float)tan(60.0 / 360 * PI) * 2.2;
+	factor = radius * (float)tan(60.0 ) * 2.2;
 	x_delta = window->mouse_info.fv_delta[0] / window->width;
 	y_delta = window->mouse_info.fv_delta[1] / window->height;
 	vec3 left = x_delta * factor * camera.x;

@@ -1,8 +1,15 @@
 #pragma once
 #include "./pipeline.h"
-#include "./model.h"
-#include "../shader/shader.h"
 
+
+#include <thread>
+#include <mutex>
+#include <cmath>
+std::mutex mutex_ins;
+
+
+// framebuffer以左下角为原点
+// 屏幕空间坐标以左上角为原点
 // TODO staic作用
 static void set_color(unsigned char* framebuffer, int x, int y, unsigned char color[]) {
 	int index = ((WINDOW_HEIGHT - y - 1) * WINDOW_WIDTH + x) * 4;
@@ -198,6 +205,7 @@ static void triangle_draw(unsigned char* framebuffer, float* zbuffer, IShader* s
 
 
 
+
 static void model_draw(unsigned char* framebuffer, float* zbuffer, IShader* shader) {
     Model* model = shader->payload_shader.model;
     
@@ -215,6 +223,197 @@ static void model_draw(unsigned char* framebuffer, float* zbuffer, IShader* shad
 
         triangle_draw(framebuffer, zbuffer, shader);
     }
+}
+
+
+
+
+vec3 reflect(vec3 in_dir, vec3 normal) {
+    // 2
+    return in_dir - 2 * dot(in_dir, normal) * normal;
+}
+
+vec3 refract(vec3 in_dir, vec3 normal, float refractive_index) {
+    float cosi = float_clamp( dot(in_dir, normal), - 1, 1);
+    float etai = 1, etat = refractive_index;
+    vec3 n = normal;
+    if (cosi < 0) { cosi = -cosi; }
+    else { std::swap(etai, etat); n = -normal; }
+    float eta = etai / etat;
+    float k = 1 - eta * eta * (1 - cosi * cosi);
+    return k < 0 ? vec3(1,0,0) : eta * in_dir + (eta * cosi - sqrtf(k)) * n;
+}
+
+
+Intersection scene_intersect(const vec3& orig, const vec3& dir, IShader* shader) {
+
+    Intersection inter;
+    float maxdistance = std::numeric_limits<float>::max();
+    float nearest_dist = 1e10;
+
+    if (std::abs(dir.y()) > .001) { // intersect the ray with the checkerboard, avoid division by zero
+        float d = -(orig.y() + 4) / dir.y(); // the checkerboard plane has equation y = -4
+        vec3 p = orig + dir * d;
+        if (d > .001 && d < nearest_dist && std::abs(p.x()) < 10 && p.z()<-10 && p.z()>-30) {
+            nearest_dist = d;
+            inter.is_intersect = true;
+            inter.distance = nearest_dist;
+            inter.pos = p;
+            inter.normal = { 0,1,0 };
+            inter.material.diffuse_color = (int(.5 * inter.pos.x() + 1000) + int(.5 * inter.pos.z())) & 1 ? vec3{ .3, .3, .3 } : vec3{ .3, .2, .1 };
+        }
+    }
+
+    
+    
+    for (auto object : shader->payload_shader.objects) {
+        Intersection tmp_inter = object->intersect(orig, dir);
+        if (tmp_inter.is_intersect && tmp_inter.distance < maxdistance) {
+            inter = tmp_inter;
+            maxdistance = tmp_inter.distance;
+        }
+    }
+    return inter;
+}
+
+// 按光线方向 取环境贴图的颜色
+vec3 get_mapColor(vec3 dir) {
+    if (dir.y() == 1.0f || dir.y() == -1.0f)return vec3(1, 1, 1);
+    float cosb = dir.y();
+    float cosa = dot(normalize(vec3(dir.x(), 0, dir.z())), vec3(1, 0, 0));
+    float angle_b = acos(cosb);
+    float angle_a = acos(cosa);
+    angle_a = dir.z() < 0 ? angle_a : angle_a + 2.0f * PI - 2.0f * angle_a;
+    int j = angle_b / PI * envmap_height;
+    int i = angle_a / 2.0f / PI * envmap_width;
+    
+    return envmap[j * envmap_width + i];
+}
+
+
+static vec3 castRay(const vec3& eye, const vec3& ray_dir, IShader* shader, const int depth = 0) {
+    
+    vec3 color(0, 0, 0);
+
+    Intersection inter = scene_intersect(eye, ray_dir, shader);
+    if (!inter.is_intersect || depth >= 4){
+        vec3 mapcolor = get_mapColor(ray_dir);
+        return mapcolor;
+    }
+
+    vec3 reflect_color;
+    if (inter.material.albedo[2] != 0) {
+        vec3 reflect_dir = normalize(reflect(ray_dir, inter.normal));
+        reflect_color = castRay(inter.pos, reflect_dir, shader, depth + 1);
+    }
+    vec3 refract_color;
+    if (inter.material.albedo[3] != 0) {
+        vec3 refract_dir = normalize(refract(ray_dir, inter.normal, inter.material.refractive_index));
+        refract_color = castRay(inter.pos, refract_dir, shader, depth + 1);
+    }
+   
+    vec3 diffuse = inter.material.diffuse_color;
+    vec3 amblient = diffuse * get_mapColor(inter.normal) * 0.1;
+    color += amblient;
+
+    vec3 diffuse_f;
+    vec3 sepcular_f;
+    //light
+    for (auto light : shader->payload_shader.lights) {
+        vec3 light_dir = normalize(light->position - inter.pos);
+        if (scene_intersect(inter.pos, light_dir, shader).is_intersect)continue;
+
+        vec3 half_dir = normalize(light_dir + -ray_dir);
+
+        float distance = (light->position - inter.pos).norm();
+        float attenuation = 1.0 / (light->constant + light->linear * distance + light->quadratic * (distance * distance));
+
+        float diff = std::max(dot(light_dir, inter.normal), 0.0);
+        diffuse_f += diff * attenuation * light->power;
+        //diffuse_f += diff * attenuation * light->power;
+
+        float spec = pow(std::max(dot(half_dir, inter.normal), 0.0), inter.material.specular_exponent);
+        sepcular_f += spec * attenuation* light->power;
+        //sepcular_f += spec * attenuation* light->power;
+    }
+
+    color += (diffuse_f * inter.material.albedo[0] + sepcular_f * inter.material.albedo[1]) * diffuse
+           + reflect_color * inter.material.albedo[2] 
+           + refract_color * inter.material.albedo[3];
+    return color;
+}
+
+
+
+// TODO static 有问题
+void ray_trace(unsigned char* framebuffer, IShader* shader) {
+    Camera* camera = shader->payload_shader.camera;
+    
+    //// 屏幕遍历左下角开始
+    //for (int i = 0; i < WINDOW_HEIGHT; i++) {
+    //    for (int j = 0; j < WINDOW_WIDTH; j++) {
+    //        float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+    //        float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+    //        //std::cout << camera->left_top_dir << std::endl;
+    //        vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+    //                                                                                                + v * camera->vertical * camera->vertical_len);
+    //        //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
+    //        vec3 color = castRay(camera->eye, ray_dir, shader);
+    //        // color
+    //        unsigned char c[3];
+    //        for (int t = 0; t < 3; t++)
+    //        {
+    //            c[t] = (int)float_clamp(color[t]  * 255, 0, 255);
+    //        }
+    //        set_color(framebuffer, j, i, c);
+    //    }
+    //}
+
+
+    // 多线程 // 为啥我这只有两倍差距
+    //int process = 0;
+    auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
+    {
+        for (uint32_t i = rowStart; i < rowEnd; ++i) {
+            for (uint32_t j = colStart; j < colEnd; ++j) {
+                float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+                float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+                //std::cout << camera->left_top_dir << std::endl;
+                vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+                    + v * camera->vertical * camera->vertical_len);
+                //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
+                vec3 color = castRay(camera->eye, ray_dir, shader);
+                // color
+                unsigned char c[3];
+                for (int t = 0; t < 3; t++)
+                {
+                    c[t] = (int)float_clamp(color[t] * 255, 0, 255);
+                }
+                set_color(framebuffer, j, i, c);
+                //process++;
+            }
+            // 互斥锁，用于打印处理进程
+            std::lock_guard<std::mutex> g1(mutex_ins);
+        }
+    };
+    int id = 0;
+    constexpr int bx = 5;
+    constexpr int by = 5;
+    std::thread th[bx * by];
+    int strideX = (WINDOW_HEIGHT + 1) / bx;
+    int strideY = (WINDOW_WIDTH + 1) / by;
+
+    // 分块计算光线追踪
+    for (int i = 0; i < WINDOW_HEIGHT; i += strideX)
+    {
+        for (int j = 0; j < WINDOW_WIDTH; j += strideY)
+        {
+            th[id] = std::thread(castRayMultiThreading, i, std::min(i + strideX, WINDOW_HEIGHT), j, std::min(j + strideY, WINDOW_WIDTH));
+            id++;
+        }
+    }
+
+    for (int i = 0; i < bx * by; i++) th[i].join();
 }
 
 
