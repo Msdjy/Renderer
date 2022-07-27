@@ -124,8 +124,8 @@ int main()
 	Material	  Front	   = { 1.0, 1, 0, vec3(),				MICROFACET };
 	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				MICROFACET };
 	Material      Botm_Top = { 1.0, 1, 0, vec3(.75f,.75f,.75f),	MICROFACET };
-	Material      Mirr	   = { 2, 0.1, 0.5, vec3(1,1,1) * .999, MICROFACET };
-	Material      Glas	   = { 1.0, 0.5, 0, vec3(1,1,1) * .999, MICROFACET };
+	Material      Mirr	   = { 2, 1, 1, vec3(1,1,1) * .999, MICROFACET };
+	Material      Glas	   = { 1.0, 1, 0, vec3(1,1,1) * .999, MICROFACET };
 	// Sphere(float r, vec3 c, vec3 emission, Material material)
 	Sphere spheres[] = {
 		// TODO 1e5会有奇怪的方框和圆形

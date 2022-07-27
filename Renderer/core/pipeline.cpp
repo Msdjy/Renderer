@@ -417,30 +417,42 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
                     //* dot(inter.normal, -dir)
                     * dot(inter_light.normal, -light_dir)
                     / pdf_light / (l_dir).norm_squared();
-        //if (color_dir.norm_squared() > 3.0f)color_dir = vec3(1);
+        for (int t = 0; t < 3; t++)
+        {
+            //if (color_dir[t] < 0)std::cout << "color_dir" << color_dir << std::endl;
+            color_dir[t] = float_clamp(color_dir[t], 0, 1);
+        }
     }
     
     // 蒙特卡洛，计算光线是否继续cast
     if (get_random_float() > RussianRoulette)
-        return  color_dir + color_indir;
+        return  color_dir;
     // 这是间接光照
     vec3 sample_dir = inter.material.sample(dir, inter.normal);
     // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，
     // 亮点太多
-    if(scene_intersect(inter.pos, sample_dir, shader).emission.norm_squared() > EPSILON)return color_dir + color_indir;
+    if(scene_intersect(inter.pos, sample_dir, shader).emission.norm_squared() > EPSILON)return color_dir;
     float pdf = inter.material.pdf(dir, sample_dir, inter.normal);
     color_indir = castRay_pathTracing(inter.pos, sample_dir, shader, depth + 1)
         * inter.material.eval(dir, sample_dir, inter.normal)
         * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
         / pdf
         / RussianRoulette;
-    if (color_indir.norm_squared() > 3.0f)color_indir = vec3(1);
+    
+
+    for (int t = 0; t < 3; t++)
+    {
+        //if (color_indir[t] < 0)std::cout <<"color_indir" << color_indir << std::endl;
+        color_indir[t] = float_clamp(color_indir[t], 0, 1);
+    }
+    vec3 color = color_dir + color_indir;
+    for (int t = 0; t < 3; t++)
+    {
+        //if (color_indir[t] < 0)std::cout <<"color_indir" << color_indir << std::endl;
+        color[t] = float_clamp(color[t], 0, 1);
+    }
  
-  /*  if (color_dir[0] + color_indir[0] > 1 || color_dir[1] + color_indir[1] > 1 || color_dir[2] + color_indir[2] > 1) {
-        std::cout << color_indir << std::endl;
-    }*/
-    //if ((color_dir + color_indir).norm_squared() > 3.0f)return vec3(1);
-    return color_dir + color_indir;
+    return color;
 }
 
 
@@ -563,7 +575,7 @@ void ray_trace_getimage(unsigned char* framebuffer, IShader* shader) {
     //    }
     //}
 
-    int spp = 100;
+    int spp = 32;
     // 多线程 // 为啥我这只有两倍差距
     int process = 0;
     auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)

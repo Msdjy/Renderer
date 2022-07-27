@@ -64,15 +64,16 @@ vec3 Material::eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal)
     switch (t) {
         case DIFFUSE:
         {
-            //// calculate the contribution of diffuse   model
-            //float cosalpha = dotProduct(N, wo);
-            //if (cosalpha > 0.0f) {
-            //    Vector3f diffuse = Kd / M_PI;
-            //    return diffuse;
-            //}
-            //else
-            //    return Vector3f(0.0f);
-            //break;
+            // calculate the contribution of diffuse   model
+            float cosalpha = dot(normal, out_dir);
+            if (cosalpha > 0.0f) {
+                vec3 diffuse = albedo * (1 - metallic);
+                diffuse = diffuse / PI;
+                return diffuse;
+            }
+            else
+                return vec3(0.0f);
+            break;
         }
         case MICROFACET:
         {
@@ -197,8 +198,8 @@ vec3 Material::sample(const vec3& in_dir, const vec3& normal) {
             float x_1 = get_random_float(), x_2 = get_random_float();
             // 而且这样采样方法对不上pdf //
             // 为什么乘2，乘2后，z可以采样到负值，负值又会舍去，消耗时间 TODO
-            //float z = std::fabs(1.0f - 2.0f * x_1);
-            float z = std::fabs(1.0f - 1.0f * x_1);
+            float z = std::fabs(1.0f - 2.0f * x_1);
+            //float z = std::fabs(1.0f - 1.0f * x_1);
             float r = std::sqrt(1.0f - z * z), phi = 2 * PI * x_2;
             vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
             return toWorld(localRay, normal);
