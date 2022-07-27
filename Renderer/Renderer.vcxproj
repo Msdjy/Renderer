@@ -106,7 +106,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -134,6 +134,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="core\camera.cpp" />
+    <ClCompile Include="core\material.cpp" />
     <ClCompile Include="core\maths.cpp" />
     <ClCompile Include="core\model.cpp" />
     <ClCompile Include="core\object.cpp" />
@@ -146,6 +147,7 @@
   <ItemGroup>
     <ClInclude Include="core\camera.h" />
     <ClInclude Include="core\macro.h" />
+    <ClInclude Include="core\material.h" />
     <ClInclude Include="core\maths.h" />
     <ClInclude Include="core\model.h" />
     <ClInclude Include="core\object.h" />

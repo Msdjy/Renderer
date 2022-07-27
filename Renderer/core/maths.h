@@ -34,6 +34,7 @@ class vec3 {
 public:
 	vec3();
 	vec3(float e0, float e1, float e2);
+	vec3(float e);
 
 	float x() const;
 	float y() const;

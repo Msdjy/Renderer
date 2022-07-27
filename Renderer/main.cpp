@@ -8,7 +8,7 @@
 #include "./platform/win32.h"
 #include "./shader/shader.h"
 #include<vector>
-
+#include <fstream>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -30,10 +30,10 @@ void update_matrix(Camera& camera, mat4& view_mat, mat4& perspective_mat, IShade
 //constexpr Material      glass = { 1.5, {0.0,  0.9, 0.1, 0.8}, {0.6, 0.7, 0.8},  125. };
 //constexpr Material red_rubber = { 1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10. };
 //constexpr Material     mirror = { 1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425. };
-Material      ivory = { 1.0, {0.9,  0.5, 0.1, 0.0}, {0.4, 0.4, 0.3},   50. };
-Material      glass = { 1.5, {0.0,  0.9, 0.1, 0.8}, {0.6, 0.7, 0.8},  125. };
-Material red_rubber = { 1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10. };
-Material     mirror = { 1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425. };
+//Material      ivory = { 1.0, {0.9,  0.5, 0.1, 0.0}, {0.4, 0.4, 0.3},   50. };
+//Material      glass = { 1.5, {0.0,  0.9, 0.1, 0.8}, {0.6, 0.7, 0.8},  125. };
+//Material red_rubber = { 1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10. };
+//Material     mirror = { 1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425. };
 
 int main() 
 {
@@ -46,26 +46,27 @@ int main()
     memset(framebuffer, 0, sizeof(unsigned char) * width * height * 4);
 
 	// TODO
-	int n = -1;
-	unsigned char* pixmap = stbi_load("./image/envmap.jpg", &envmap_width, &envmap_height, &n, 0);
-	if (!pixmap || 3 != n) {
-		std::cerr << "Error: can not load the environment map" << std::endl;
-		return -1;
-	}
-	envmap = std::vector<vec3>(envmap_width * envmap_height);
-	for (int j = envmap_height - 1; j >= 0; j--) {
-		for (int i = 0; i < envmap_width; i++) {
-			envmap[i + j * envmap_width] = vec3(pixmap[(i + j * envmap_width) * 3 + 0], pixmap[(i + j * envmap_width) * 3 + 1], pixmap[(i + j * envmap_width) * 3 + 2]) * (1 / 255.);
-		}
-	}
-	stbi_image_free(pixmap);
+	//int n = -1;
+	//unsigned char* pixmap = stbi_load("./image/envmap.jpg", &envmap_width, &envmap_height, &n, 0);
+	//if (!pixmap || 3 != n) {
+	//	std::cerr << "Error: can not load the environment map" << std::endl;
+	//	return -1;
+	//}
+	//envmap = std::vector<vec3>(envmap_width * envmap_height);
+	//for (int j = envmap_height - 1; j >= 0; j--) {
+	//	for (int i = 0; i < envmap_width; i++) {
+	//		envmap[i + j * envmap_width] = vec3(pixmap[(i + j * envmap_width) * 3 + 0], pixmap[(i + j * envmap_width) * 3 + 1], pixmap[(i + j * envmap_width) * 3 + 2]) * (1 / 255.);
+	//	}
+	//}
+	//stbi_image_free(pixmap);
 
     // initialize window
     window_init(width, height, "Render");
 
 	// create camera
-	vec3 eye(0, 0, 0);
+	vec3 eye(50, 40, 168);
 	vec3 target(0, 0, -1);
+	target = eye + target;
 	vec3 up(0, 1, 0);
 	float fov = 60;
 	float aspect = (float)(width) / height;
@@ -90,43 +91,65 @@ int main()
 	perspective_mat = ortho_mat * perspective_mat;
 
 	// light
-	Light* light1 = new Light;
-	light1->position = vec3(-20,20,20);
-	light1->power = vec3(100,100,100);	
+	//Light* light1 = new Light;
+	//light1->position = vec3(-20,20,20);
+	//light1->power = vec3(100,100,100);	
 
-	Light* light2 = new Light;
-	light2->position = vec3(30,50,-25);
-	light2->power = vec3(20, 20,20);
+	//Light* light2 = new Light;
+	//light2->position = vec3(30,50,-25);
+	//light2->power = vec3(20, 20,20);
 
-	Light* light3 = new Light;
-	light3->position = vec3(30, 20, 30);
-	light3->power = vec3(20, 20, 20);
+	//Light* light3 = new Light;
+	//light3->position = vec3(30, 20, 30);
+	//light3->power = vec3(20, 20, 20);
 	
 
 
 	// model
-	Model* model = new Model("./objects/african_head/african_head.obj");
+	//Model* model = new Model("./objects/african_head/african_head.obj");
 
 
 	// sphere
 
-	Object* sp1 = new Sphere(vec3(-3, 0, -16), 2, ivory);
-	Object* sp2 = new Sphere(vec3(-1, -1.5, -12), 2, glass);
-	Object* sp3 = new Sphere(vec3(1.5, -0.5, -18), 3, red_rubber);
-	Object* sp4 = new Sphere(vec3(7, 5, -18), 4, mirror);
-
-
+	//Object* sp1 = new Sphere(vec3(-3, 0, -16), 2, ivory);
+	//Object* sp2 = new Sphere(vec3(-1, -1.5, -12), 2, glass);
+	//Object* sp3 = new Sphere(vec3(1.5, -0.5, -18), 3, red_rubber);
+	//Object* sp4 = new Sphere(vec3(7, 5, -18), 4, mirror);
+	// Material(float ior, float roughness, float metallic, vec3 albedo, MaterialType t = DIFFUSE)
+	//Material      Left     = { 1.0, 1, 0, vec3(.75f,.25f,.25f),	MICROFACET };
+	Material      Left     = { 1.0, 1, 0, vec3(0.63f, 0.065f, 0.05f),	MICROFACET };
+	//Material      Right    = { 1.0, 1, 0, vec3(.25f,.25f,.75f),	MICROFACET };
+	Material      Right    = { 1.0, 1, 0, vec3(0.14f, 0.45f, 0.091f),	MICROFACET };
+	Material	  Back	   = { 1.0, 1, 0, vec3(.75f,.75f,.75f),	MICROFACET };
+	Material	  Front	   = { 1.0, 1, 0, vec3(),				MICROFACET };
+	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				MICROFACET };
+	Material      Botm_Top = { 1.0, 1, 0, vec3(.75f,.75f,.75f),	MICROFACET };
+	Material      Mirr	   = { 2, 0.1, 0.5, vec3(1,1,1) * .999, MICROFACET };
+	Material      Glas	   = { 1.0, 0.5, 0, vec3(1,1,1) * .999, MICROFACET };
+	// Sphere(float r, vec3 c, vec3 emission, Material material)
+	Sphere spheres[] = {
+		// TODO 1e5会有奇怪的方框和圆形
+		Sphere(1e3, vec3(1e3 + 1,40.8,81.6),   vec3(),			Left),//Left 
+		Sphere(1e3, vec3(-1e3 + 99,40.8,81.6), vec3(),			Right),//Rght 
+		Sphere(1e3, vec3(50,40.8, 1e3),        vec3(),			Back),//Back 
+		Sphere(1e3, vec3(50,40.8,-1e3 + 170),  vec3(),			Front),//Frnt 
+		Sphere(1e3, vec3(50, 1e3, 81.6),       vec3(),			Botm_Top),//Botm 
+		Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
+		Sphere(16.5,vec3(27,16.5,47),          vec3(),			Mirr),//Mirr 
+		Sphere(16.5,vec3(73,16.5,78),          vec3(),			Glas),//Glas 
+		Sphere(5, vec3(50,75,81.6), vec3(30,30,30),  Front) //Lite 
+	};
 
 	// shader
 	IShader* shader = new BingPhoneShader();
 	// shader payload
-	shader->payload_shader.objects.push_back(sp1);
-	shader->payload_shader.objects.push_back(sp2);
-	shader->payload_shader.objects.push_back(sp3);
-	shader->payload_shader.objects.push_back(sp4);
-	shader->payload_shader.lights.push_back(light1);
-	shader->payload_shader.lights.push_back(light2);
-	shader->payload_shader.lights.push_back(light3);
+	// auto sphere : spheres TODO
+	for (auto &sphere : spheres) {
+		shader->payload_shader.objects.push_back(&sphere);
+	}
+	//shader->payload_shader.lights.push_back(light1);
+	//shader->payload_shader.lights.push_back(light2);
+	//shader->payload_shader.lights.push_back(light3);
 	shader->payload_shader.camera = &camera;
 
 	shader->payload_shader.model_mat = model_mat;
@@ -134,8 +157,30 @@ int main()
 	shader->payload_shader.perspective_mat = perspective_mat;
 	shader->payload_shader.vp_mat = perspective_mat * view_mat;
 
-	shader->payload_shader.model = model;
-	shader->payload_shader.diffuse_map = model->diffuse();
+	//shader->payload_shader.model = model;
+	//shader->payload_shader.diffuse_map = model->diffuse();
+
+
+	ray_trace_getimage(framebuffer, shader);
+
+	FILE* fp = fopen("binary.ppm", "wb");
+	(void)fprintf(fp, "P6\n%d %d\n255\n", WINDOW_WIDTH, WINDOW_HEIGHT);
+	for (int y = 0; y < WINDOW_HEIGHT; y++) {
+		for (int x = 0; x < WINDOW_WIDTH; x++) {
+			int index = (y * WINDOW_WIDTH + x) * 4;
+			static unsigned char color[3];
+			for (int i = 0; i < 3; i++) {
+				color[i] = framebuffer[index + i];
+			}
+			fwrite(color, 1, 3, fp);
+		}
+	}
+
+	fclose(fp);
+
+	return 0;
+
+
 
 	// render loop
 	// -----------
@@ -159,6 +204,7 @@ int main()
 
 		//model_draw(framebuffer, zbuffer, shader);
 		ray_trace(framebuffer, shader);
+
 
 		// calculate and display FPS
 		num_frames += 1;

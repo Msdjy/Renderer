@@ -1,7 +1,6 @@
 #pragma once
 #include "./pipeline.h"
 
-
 #include <thread>
 #include <mutex>
 #include <cmath>
@@ -249,26 +248,40 @@ Intersection scene_intersect(const vec3& orig, const vec3& dir, IShader* shader)
 
     Intersection inter;
     float maxdistance = std::numeric_limits<float>::max();
-    float nearest_dist = 1e10;
+    maxdistance = 10000;
 
-    if (std::abs(dir.y()) > .001) { // intersect the ray with the checkerboard, avoid division by zero
-        float d = -(orig.y() + 4) / dir.y(); // the checkerboard plane has equation y = -4
-        vec3 p = orig + dir * d;
-        if (d > .001 && d < nearest_dist && std::abs(p.x()) < 10 && p.z()<-10 && p.z()>-30) {
-            nearest_dist = d;
-            inter.is_intersect = true;
-            inter.distance = nearest_dist;
-            inter.pos = p;
-            inter.normal = { 0,1,0 };
-            inter.material.diffuse_color = (int(.5 * inter.pos.x() + 1000) + int(.5 * inter.pos.z())) & 1 ? vec3{ .3, .3, .3 } : vec3{ .3, .2, .1 };
-        }
-    }
+    //// 棋盘平台的相交代码，并没有用object或model，是用坐标特殊实现的
+    //float nearest_dist = 1e10;
+    //if (std::abs(dir.y()) > .001) { // intersect the ray with the checkerboard, avoid division by zero
+    //    float d = -(orig.y() + 4) / dir.y(); // the checkerboard plane has equation y = -4
+    //    vec3 p = orig + dir * d;
+    //    if (d > .001 && d < nearest_dist && std::abs(p.x()) < 10 && p.z()<-10 && p.z()>-30) {
+    //        nearest_dist = d;
+    //        inter.is_intersect = true;
+    //        inter.distance = nearest_dist;
+    //        inter.pos = p;
+    //        inter.normal = { 0,1,0 };
+    //        inter.material.diffuse_color = (int(.5 * inter.pos.x() + 1000) + int(.5 * inter.pos.z())) & 1 ? vec3{ .3, .3, .3 } : vec3{ .3, .2, .1 };
+    //    }
+    //}
 
-    
-    
-    for (auto object : shader->payload_shader.objects) {
+    //for (auto object : shader->payload_shader.objects) {
+    //    Intersection tmp_inter = object->intersect(orig, dir);
+    //    
+    //    if (tmp_inter.is_intersect && tmp_inter.distance < maxdistance) {
+    //        //std::cout << tmp_inter.material.albedo<<" " << std::endl;
+    //        //std::cout << tmp_inter.distance << " " << std::endl;
+    //        inter = tmp_inter;
+    //        maxdistance = tmp_inter.distance;
+    //    }
+    //}
+    for (int i = 0; i < shader->payload_shader.objects.size(); i++) {
+        auto object = shader->payload_shader.objects[i];
         Intersection tmp_inter = object->intersect(orig, dir);
+
         if (tmp_inter.is_intersect && tmp_inter.distance < maxdistance) {
+            //std::cout << tmp_inter.material.albedo<<" " << std::endl;
+            //std::cout << tmp_inter.distance << " " << std::endl;
             inter = tmp_inter;
             maxdistance = tmp_inter.distance;
         }
@@ -291,7 +304,7 @@ vec3 get_mapColor(vec3 dir) {
 }
 
 
-static vec3 castRay(const vec3& eye, const vec3& ray_dir, IShader* shader, const int depth = 0) {
+static vec3 castRay_whited(const vec3& eye, const vec3& ray_dir, IShader* shader, const int depth = 0) {
     
     vec3 color(0, 0, 0);
 
@@ -304,15 +317,15 @@ static vec3 castRay(const vec3& eye, const vec3& ray_dir, IShader* shader, const
     vec3 reflect_color;
     if (inter.material.albedo[2] != 0) {
         vec3 reflect_dir = normalize(reflect(ray_dir, inter.normal));
-        reflect_color = castRay(inter.pos, reflect_dir, shader, depth + 1);
+        reflect_color = castRay_whited(inter.pos, reflect_dir, shader, depth + 1);
     }
     vec3 refract_color;
     if (inter.material.albedo[3] != 0) {
-        vec3 refract_dir = normalize(refract(ray_dir, inter.normal, inter.material.refractive_index));
-        refract_color = castRay(inter.pos, refract_dir, shader, depth + 1);
+        vec3 refract_dir = normalize(refract(ray_dir, inter.normal, inter.material.ior));
+        refract_color = castRay_whited(inter.pos, refract_dir, shader, depth + 1);
     }
    
-    vec3 diffuse = inter.material.diffuse_color;
+    vec3 diffuse = inter.material.albedo;
     vec3 amblient = diffuse * get_mapColor(inter.normal) * 0.1;
     color += amblient;
 
@@ -343,6 +356,92 @@ static vec3 castRay(const vec3& eye, const vec3& ray_dir, IShader* shader, const
     return color;
 }
 
+void sample_InterLight(Intersection& inter, float& pdf, IShader* shader)
+{
+    float emit_area_sum = 0;
+    for (auto object : shader->payload_shader.objects) {
+        //std::cout<< object->emission <<std::endl;
+        if (object->has_emmission()) {
+            emit_area_sum += object->getArea();
+        }
+    }
+    float p = get_random_float() * emit_area_sum;
+    //std::cout << emit_area_sum << std::endl;
+    emit_area_sum = 0;
+    
+    for (auto object : shader->payload_shader.objects) {
+        if (object->has_emmission()) {
+            emit_area_sum += object->getArea();
+            if (p <= emit_area_sum) {
+                object->sample(inter, pdf);
+                break;
+            }
+        }
+    }
+}
+
+
+// 蒙特卡洛方法，可以自定义的部分
+// 1. 采样方法
+// 2. brdf, 有基于物理的brdf，或经验模型
+
+// pbr的brdf，反射光部分可以分为漫反射和镜面反射
+static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shader, const int depth = 0) {
+
+    vec3 color_dir;
+    vec3 color_indir;
+    Intersection inter = scene_intersect(ori, dir, shader);
+    if (!inter.is_intersect) {
+        return vec3(0);
+    }
+    //std::cout << inter.material.t << std::endl;
+    //return inter.;
+    // 光线直接看到的是光源
+    if (inter.emission.norm() > EPSILON) {
+        return inter.emission;
+    }
+
+    // 观察点到光源是否有遮挡
+    // 无遮挡，光线cast直接得到光源颜色，这是直接光照
+    float pdf_light;
+    Intersection inter_light;
+    sample_InterLight(inter_light, pdf_light, shader);
+    //std::cout << pdf_light << std::endl;
+    vec3 l_dir = inter_light.pos - inter.pos;
+    vec3 light_dir = normalize(l_dir);
+
+    if ( scene_intersect(inter.pos, light_dir, shader).distance - (inter_light.pos - inter.pos).norm() > -0.01) {
+        color_dir = inter_light.emission
+                    * inter.material.eval(dir, light_dir, inter.normal)
+                    * dot(inter.normal, light_dir) // TODO 算能量算的是出射光看到的能量吗
+                    //* dot(inter.normal, -dir)
+                    * dot(inter_light.normal, -light_dir)
+                    / pdf_light / (l_dir).norm_squared();
+        //if (color_dir.norm_squared() > 3.0f)color_dir = vec3(1);
+    }
+    
+    // 蒙特卡洛，计算光线是否继续cast
+    if (get_random_float() > RussianRoulette)
+        return  color_dir + color_indir;
+    // 这是间接光照
+    vec3 sample_dir = inter.material.sample(dir, inter.normal);
+    // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，
+    // 亮点太多
+    if(scene_intersect(inter.pos, sample_dir, shader).emission.norm_squared() > EPSILON)return color_dir + color_indir;
+    float pdf = inter.material.pdf(dir, sample_dir, inter.normal);
+    color_indir = castRay_pathTracing(inter.pos, sample_dir, shader, depth + 1)
+        * inter.material.eval(dir, sample_dir, inter.normal)
+        * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
+        / pdf
+        / RussianRoulette;
+    if (color_indir.norm_squared() > 3.0f)color_indir = vec3(1);
+ 
+  /*  if (color_dir[0] + color_indir[0] > 1 || color_dir[1] + color_indir[1] > 1 || color_dir[2] + color_indir[2] > 1) {
+        std::cout << color_indir << std::endl;
+    }*/
+    //if ((color_dir + color_indir).norm_squared() > 3.0f)return vec3(1);
+    return color_dir + color_indir;
+}
 
 
 // TODO static 有问题
@@ -369,9 +468,9 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
     //    }
     //}
 
-
+    int spp = 1;
     // 多线程 // 为啥我这只有两倍差距
-    //int process = 0;
+    int process = 0;
     auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
     {
         for (uint32_t i = rowStart; i < rowEnd; ++i) {
@@ -382,7 +481,26 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
                 vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
                     + v * camera->vertical * camera->vertical_len);
                 //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
-                vec3 color = castRay(camera->eye, ray_dir, shader);
+               
+                vec3 color;
+                for (int k = 0; k < spp; k++) {
+                    vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
+                    //if (castColor.norm_squared() > 3.0f)castColor = vec3(1);
+                    color += castColor;
+                }
+                color = color / (float)spp;
+
+                const float gamma = 2.2;
+                vec3 hdrColor = color;
+
+                //// Reinhard色调映射
+                vec3 mapped;
+                for (int w = 0; w < 3; w++) {
+                    mapped[w] = hdrColor[w] / (hdrColor[w] + 1.0f);
+                    mapped[w] = std::pow(mapped[w], 1.0 / gamma);
+                }
+                color = mapped;
+
                 // color
                 unsigned char c[3];
                 for (int t = 0; t < 3; t++)
@@ -390,10 +508,11 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
                     c[t] = (int)float_clamp(color[t] * 255, 0, 255);
                 }
                 set_color(framebuffer, j, i, c);
-                //process++;
+                process++;
             }
             // 互斥锁，用于打印处理进程
             std::lock_guard<std::mutex> g1(mutex_ins);
+            //UpdateProgress(1.0 * process / WINDOW_WIDTH / WINDOW_HEIGHT);
         }
     };
     int id = 0;
@@ -414,7 +533,103 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
     }
 
     for (int i = 0; i < bx * by; i++) th[i].join();
+    //UpdateProgress(1.f);
 }
 
 
 
+
+// TODO static 有问题
+void ray_trace_getimage(unsigned char* framebuffer, IShader* shader) {
+    Camera* camera = shader->payload_shader.camera;
+
+    //// 屏幕遍历左下角开始
+    //for (int i = 0; i < WINDOW_HEIGHT; i++) {
+    //    for (int j = 0; j < WINDOW_WIDTH; j++) {
+    //        float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+    //        float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+    //        //std::cout << camera->left_top_dir << std::endl;
+    //        vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+    //                                                                                                + v * camera->vertical * camera->vertical_len);
+    //        //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
+    //        vec3 color = castRay(camera->eye, ray_dir, shader);
+    //        // color
+    //        unsigned char c[3];
+    //        for (int t = 0; t < 3; t++)
+    //        {
+    //            c[t] = (int)float_clamp(color[t]  * 255, 0, 255);
+    //        }
+    //        set_color(framebuffer, j, i, c);
+    //    }
+    //}
+
+    int spp = 100;
+    // 多线程 // 为啥我这只有两倍差距
+    int process = 0;
+    auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
+    {
+        for (uint32_t i = rowStart; i < rowEnd; ++i) {
+            for (uint32_t j = colStart; j < colEnd; ++j) {
+                float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+                float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+                //std::cout << camera->left_top_dir << std::endl;
+                vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+                    + v * camera->vertical * camera->vertical_len);
+                //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
+
+                vec3 color;
+                for (int k = 0; k < spp; k++) {
+                    vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
+                    //if (castColor.norm_squared() > 3.0f)castColor = vec3(1);
+                    color += castColor;
+                }
+                color = color / (float)spp;
+
+
+                const float gamma = 2.2;
+                vec3 hdrColor = color;
+
+                // Reinhard色调映射
+                vec3 mapped;
+                for (int w = 0; w < 3; w++) {
+                    mapped[w] = hdrColor[w] / (hdrColor[w] + 1.0f);
+                    mapped[w] = std::pow(mapped[w], 1.0 / gamma);
+                }
+                color = mapped;
+
+
+
+                // color
+                unsigned char c[3];
+                for (int t = 0; t < 3; t++)
+                {
+                    c[t] = (int)float_clamp(color[t] * 255, 0, 255);
+                }
+                set_color(framebuffer, j, i, c);
+                process++;
+            }
+            // 互斥锁，用于打印处理进程
+            std::lock_guard<std::mutex> g1(mutex_ins);
+            UpdateProgress(1.0 * process / WINDOW_WIDTH / WINDOW_HEIGHT);
+        }
+    };
+    int id = 0;
+    constexpr int bx = 5;
+    constexpr int by = 5;
+    std::thread th[bx * by];
+    int strideX = (WINDOW_HEIGHT + 1) / bx;
+    int strideY = (WINDOW_WIDTH + 1) / by;
+
+    // 分块计算光线追踪
+    for (int i = 0; i < WINDOW_HEIGHT; i += strideX)
+    {
+        for (int j = 0; j < WINDOW_WIDTH; j += strideY)
+        {
+            th[id] = std::thread(castRayMultiThreading, i, std::min(i + strideX, WINDOW_HEIGHT), j, std::min(j + strideY, WINDOW_WIDTH));
+            id++;
+        }
+    }
+
+    for (int i = 0; i < bx * by; i++) th[i].join();
+    UpdateProgress(1.f);
+}
