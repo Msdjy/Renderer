@@ -117,15 +117,15 @@ int main()
 	//Object* sp4 = new Sphere(vec3(7, 5, -18), 4, mirror);
 	// Material(float ior, float roughness, float metallic, vec3 albedo, MaterialType t = DIFFUSE)
 	//Material      Left     = { 1.0, 1, 0, vec3(.75f,.25f,.25f),	MICROFACET };
-	Material      Left     = { 1.0, 1, 0, vec3(0.63f, 0.065f, 0.05f),	MICROFACET };
+	Material      Left     = { 30, 1, 0, vec3(0.63f, 0.065f, 0.05f),	DIFFUSE };
 	//Material      Right    = { 1.0, 1, 0, vec3(.25f,.25f,.75f),	MICROFACET };
-	Material      Right    = { 1.0, 1, 0, vec3(0.14f, 0.45f, 0.091f),	MICROFACET };
-	Material	  Back	   = { 1.0, 1, 0, vec3(.75f,.75f,.75f),	MICROFACET };
-	Material	  Front	   = { 1.0, 1, 0, vec3(),				MICROFACET };
-	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				MICROFACET };
-	Material      Botm_Top = { 1.0, 1, 0, vec3(.75f,.75f,.75f),	MICROFACET };
-	Material      Mirr	   = { 2, 1, 1, vec3(1,1,1) * .999, MICROFACET };
-	Material      Glas	   = { 1.0, 1, 0, vec3(1,1,1) * .999, MICROFACET };
+	Material      Right    = { 30, 1, 0, vec3(0.14f, 0.45f, 0.091f),	DIFFUSE };
+	Material	  Back	   = { 30, 1, 0, vec3(.9f,.9f,.9f),	DIFFUSE };
+	Material	  Front	   = { 30, 1, 0, vec3(),				DIFFUSE };
+	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				DIFFUSE };
+	Material      Botm_Top = { 30, 1, 0, vec3(.9f,.9f,.9f),	DIFFUSE };
+	Material      Mirr	   = { 20, 0.2, 1, vec3(1,1,1) * .999, MICROFACET };
+	Material      Glas	   = { 20, 1, 0, vec3(0.2,1,1) * .999, MICROFACET };
 	// Sphere(float r, vec3 c, vec3 emission, Material material)
 	Sphere spheres[] = {
 		// TODO 1e5会有奇怪的方框和圆形
@@ -160,25 +160,28 @@ int main()
 	//shader->payload_shader.model = model;
 	//shader->payload_shader.diffuse_map = model->diffuse();
 
+	// 多spp输出图片
+	//{
+	//	ray_trace_getimage(framebuffer, shader);
 
-	ray_trace_getimage(framebuffer, shader);
+	//	FILE* fp = fopen("binary.ppm", "wb");
+	//	(void)fprintf(fp, "P6\n%d %d\n255\n", WINDOW_WIDTH, WINDOW_HEIGHT);
+	//	for (int y = 0; y < WINDOW_HEIGHT; y++) {
+	//		for (int x = 0; x < WINDOW_WIDTH; x++) {
+	//			int index = (y * WINDOW_WIDTH + x) * 4;
+	//			static unsigned char color[3];
+	//			for (int i = 0; i < 3; i++) {
+	//				color[i] = framebuffer[index + i];
+	//			}
+	//			fwrite(color, 1, 3, fp);
+	//		}
+	//	}
 
-	FILE* fp = fopen("binary.ppm", "wb");
-	(void)fprintf(fp, "P6\n%d %d\n255\n", WINDOW_WIDTH, WINDOW_HEIGHT);
-	for (int y = 0; y < WINDOW_HEIGHT; y++) {
-		for (int x = 0; x < WINDOW_WIDTH; x++) {
-			int index = (y * WINDOW_WIDTH + x) * 4;
-			static unsigned char color[3];
-			for (int i = 0; i < 3; i++) {
-				color[i] = framebuffer[index + i];
-			}
-			fwrite(color, 1, 3, fp);
-		}
-	}
+	//	fclose(fp);
 
-	fclose(fp);
+	//	return 0;
+	//}
 
-	return 0;
 
 
 

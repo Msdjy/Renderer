@@ -34,7 +34,7 @@ float DistributionGGX(const vec3& N, const vec3& H, float roughness) {
     float NdotH = dot(N, H);
     float NdotH2 = NdotH * NdotH;
 
-    return alpha / PI / pow(NdotH2 * (alpha2 - 1) + 1, 2);
+    return alpha2 / PI / pow(NdotH2 * (alpha2 - 1) + 1, 2);
 }
 
 // TODO 
@@ -67,7 +67,7 @@ vec3 Material::eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal)
             // calculate the contribution of diffuse   model
             float cosalpha = dot(normal, out_dir);
             if (cosalpha > 0.0f) {
-                vec3 diffuse = albedo * (1 - metallic);
+                vec3 diffuse = albedo;
                 diffuse = diffuse / PI;
                 return diffuse;
             }
@@ -114,30 +114,57 @@ vec3 Material::eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal)
 
                 float nominator = D * G * F;
                 float denominator = 4 * Ndotwi * Ndotwo;
-                // std::max(denominator, 0.001f)
-                // Vector3f mirror_reflection =  nominator /denominator;
-                //std::cout << nominator << std::endl;
+
                 vec3 mirror_reflection = nominator / std::max(denominator, 0.001f);
-                // std::cout<<mirror_reflection.x<<" "<<mirror_reflection.y<<" "<<mirror_reflection.z<<std::endl;
-                // return diffuse;
-                // mirror_reflection.x = clamp(0, 1, mirror_reflection.x);
-                // mirror_reflection.y = clamp(0, 1, mirror_reflection.y);
-                // mirror_reflection.z = clamp(0, 1, mirror_reflection.z);
-                // std::cout<<mirror_reflection.x<<" "<<mirror_reflection.y<<" "<<mirror_reflection.z<<std::endl;
-                // return Ks * mirror_reflection;
-                //return kd_ * Kd * diffuse + Ks * mirror_reflection;
+                //TODO 这边*diff的理解
                 return kd_ * diff * diffuse + ks_ * mirror_reflection * specular;
                 //return kd_ * diff * diffuse + ks_ * mirror_reflection * specular;
             }
             else
                 return vec3(0.0f);
             break;
-
-
         }
-
     }
 }
+// TODO
+vec3 toWorld(const vec3& a, const vec3& N) {
+    vec3 B, C;
+    if (std::abs(N.x()) > std::abs(N.y())) {
+        float invLen = 1.0f / std::sqrt(N.x() * N.x() + N.z() * N.z());
+        C = vec3(N.z() * invLen, 0.0f, -N.x() * invLen);
+    }
+    else {
+        float invLen = 1.0f / std::sqrt(N.y() * N.y() + N.z() * N.z());
+        C = vec3(0.0f, N.z() * invLen, -N.y() * invLen);
+    }
+    B = cross(C, N);
+    return a.x() * B + a.y() * C + a.z() * N;
+}
+
+void Material::ImporttanceSampleGGX(const vec3& normal,const vec3& in_dir, vec3& out_dir, float& pdf) {
+    float r1 = get_random_float();
+    float r2 = get_random_float();
+
+
+    float alpha2 = pow(roughness, 4);
+
+    float phi = 2 * PI * r1;
+    float cosTheta = sqrt((1 - r2) / (1 + (alpha2 - 1) * r2));
+    float sinTheta = sqrt(1 -  cosTheta * cosTheta);
+
+    vec3 localRay;
+    localRay[0] = sinTheta * cos(phi);
+    localRay[1] = sinTheta * sin(phi);
+    localRay[2] = cosTheta;
+    vec3 H = normalize(toWorld(localRay, normal));
+    out_dir = in_dir - 2 * dot(in_dir, H) * H;
+
+    float d = (cosTheta * alpha2 - cosTheta) * cosTheta + 1;
+    float D = alpha2 / (PI * d * d);
+    pdf = D * cosTheta;
+
+}
+
 
 float Material::pdf(const vec3& in_dir, const vec3& out_dir, const vec3& normal) {
     switch (t) {
@@ -162,20 +189,7 @@ float Material::pdf(const vec3& in_dir, const vec3& out_dir, const vec3& normal)
     }
 }
 
-// TODO
-vec3 toWorld(const vec3& a, const vec3& N) {
-    vec3 B, C;
-    if (std::abs(N.x()) > std::abs(N.y())) {
-        float invLen = 1.0f / std::sqrt(N.x() * N.x() + N.z() * N.z());
-        C = vec3(N.z() * invLen, 0.0f, -N.x() * invLen);
-    }
-    else {
-        float invLen = 1.0f / std::sqrt(N.y() * N.y() + N.z() * N.z());
-        C = vec3(0.0f, N.z() * invLen, -N.y() * invLen);
-    }
-    B = cross(C, N);
-    return a.x() * B + a.y() * C + a.z() * N;
-}
+
 
 // 按照该材质的性质，给定入射方向与法向量，用某种分布采样一个出射方向
 // TODO

@@ -28,4 +28,5 @@ public:
 	vec3 eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal);
 	vec3 sample(const vec3& in_dir, const vec3& norma);
 	float pdf(const vec3& in_dir, const vec3& out_dir, const vec3& normal);
+	void ImporttanceSampleGGX(const vec3& normal, const vec3& in_dir, vec3& out_dir, float& pdf);
 };

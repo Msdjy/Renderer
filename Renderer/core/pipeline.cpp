@@ -366,7 +366,6 @@ void sample_InterLight(Intersection& inter, float& pdf, IShader* shader)
         }
     }
     float p = get_random_float() * emit_area_sum;
-    //std::cout << emit_area_sum << std::endl;
     emit_area_sum = 0;
     
     for (auto object : shader->payload_shader.objects) {
@@ -394,10 +393,8 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
     if (!inter.is_intersect) {
         return vec3(0);
     }
-    //std::cout << inter.material.t << std::endl;
-    //return inter.;
     // 光线直接看到的是光源
-    if (inter.emission.norm() > EPSILON) {
+    if (inter.emission.norm_squared() > 1) {
         return inter.emission;
     }
 
@@ -406,52 +403,43 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
     float pdf_light;
     Intersection inter_light;
     sample_InterLight(inter_light, pdf_light, shader);
-    //std::cout << pdf_light << std::endl;
     vec3 l_dir = inter_light.pos - inter.pos;
     vec3 light_dir = normalize(l_dir);
 
-    if ( scene_intersect(inter.pos, light_dir, shader).distance - (inter_light.pos - inter.pos).norm() > -0.01) {
+    //if ( scene_intersect(inter.pos, light_dir, shader).distance - (inter_light.pos - inter.pos).norm() > -10) {
+    if (scene_intersect(inter.pos, light_dir, shader).emission.norm_squared() > 1) {
         color_dir = inter_light.emission
                     * inter.material.eval(dir, light_dir, inter.normal)
                     * dot(inter.normal, light_dir) // TODO 算能量算的是出射光看到的能量吗
-                    //* dot(inter.normal, -dir)
-                    * dot(inter_light.normal, -light_dir)
+                    // 球型光不能这样算 
+                    // * dot(inter_light.normal, -light_dir)
+                    * 1
                     / pdf_light / (l_dir).norm_squared();
-        for (int t = 0; t < 3; t++)
-        {
-            //if (color_dir[t] < 0)std::cout << "color_dir" << color_dir << std::endl;
-            color_dir[t] = float_clamp(color_dir[t], 0, 1);
-        }
     }
     
     // 蒙特卡洛，计算光线是否继续cast
     if (get_random_float() > RussianRoulette)
         return  color_dir;
     // 这是间接光照
-    vec3 sample_dir = inter.material.sample(dir, inter.normal);
-    // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，
-    // 亮点太多
-    if(scene_intersect(inter.pos, sample_dir, shader).emission.norm_squared() > EPSILON)return color_dir;
-    float pdf = inter.material.pdf(dir, sample_dir, inter.normal);
-    color_indir = castRay_pathTracing(inter.pos, sample_dir, shader, depth + 1)
-        * inter.material.eval(dir, sample_dir, inter.normal)
-        * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
-        / pdf
-        / RussianRoulette;
-    
+    vec3 sample_dir;
+    float pdf;
+    //if (inter.material.roughness > 0.99 || inter.material.t == DIFFUSE) {
+        sample_dir = inter.material.sample(dir, inter.normal);
+        pdf = inter.material.pdf(dir, sample_dir, inter.normal);
+    //}// 重要性采样
+    // 镜面球还会有黑点
+    //else inter.material.ImporttanceSampleGGX(inter.normal, dir, sample_dir, pdf);
 
-    for (int t = 0; t < 3; t++)
-    {
-        //if (color_indir[t] < 0)std::cout <<"color_indir" << color_indir << std::endl;
-        color_indir[t] = float_clamp(color_indir[t], 0, 1);
-    }
+    // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，亮点太多
+    // 这个加不加都有白噪点
+    if(scene_intersect(inter.pos, sample_dir, shader).emission.norm_squared() > 1)return color_dir;
+    color_indir = castRay_pathTracing(inter.pos, sample_dir, shader, depth + 1)
+                * inter.material.eval(dir, sample_dir, inter.normal)
+                * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
+                / pdf
+                / RussianRoulette;
+    //if (color_indir[0] < 0 || color_indir[1] < 0 || color_indir[2] < 0)std::cout << "asd" << std::endl;
     vec3 color = color_dir + color_indir;
-    for (int t = 0; t < 3; t++)
-    {
-        //if (color_indir[t] < 0)std::cout <<"color_indir" << color_indir << std::endl;
-        color[t] = float_clamp(color[t], 0, 1);
-    }
- 
     return color;
 }
 
@@ -497,7 +485,6 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
                 vec3 color;
                 for (int k = 0; k < spp; k++) {
                     vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
-                    //if (castColor.norm_squared() > 3.0f)castColor = vec3(1);
                     color += castColor;
                 }
                 color = color / (float)spp;
@@ -575,7 +562,7 @@ void ray_trace_getimage(unsigned char* framebuffer, IShader* shader) {
     //    }
     //}
 
-    int spp = 32;
+    int spp = 16;
     // 多线程 // 为啥我这只有两倍差距
     int process = 0;
     auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
@@ -587,12 +574,9 @@ void ray_trace_getimage(unsigned char* framebuffer, IShader* shader) {
                 //std::cout << camera->left_top_dir << std::endl;
                 vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
                     + v * camera->vertical * camera->vertical_len);
-                //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
-
                 vec3 color;
                 for (int k = 0; k < spp; k++) {
                     vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
-                    //if (castColor.norm_squared() > 3.0f)castColor = vec3(1);
                     color += castColor;
                 }
                 color = color / (float)spp;

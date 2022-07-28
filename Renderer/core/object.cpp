@@ -19,7 +19,7 @@ Intersection Sphere::intersect(const vec3& eye, const vec3& dir)const {
 	float t0 = (-b - b24ac) / 2 / a;
 	
 	// offset the original point by .001 to avoid occlusion by the object itself
-	if (t0 > .001) {
+	if (t0 > .1) {
 		inter.pos = eye + t0 * dir;
 		inter.normal = normalize(inter.pos - center);
 		inter.distance = t0;
@@ -27,9 +27,10 @@ Intersection Sphere::intersect(const vec3& eye, const vec3& dir)const {
 		inter.material = material;
 		inter.emission = emission;
 		if (dot(dir, inter.normal) > 0)inter.normal = -inter.normal;
+		inter.pos = inter.pos + 0.1 * inter.normal;
 		return inter;
 	}
-	if (t1 > .001) {
+	if (t1 > .1) {
 		inter.pos = eye + t1 * dir;
 		inter.normal = normalize(inter.pos - center);
 		inter.distance = t1;
@@ -37,6 +38,7 @@ Intersection Sphere::intersect(const vec3& eye, const vec3& dir)const {
 		inter.material = material;
 		inter.emission = emission;
 		if (dot(dir, inter.normal) > 0)inter.normal = -inter.normal;
+		inter.pos = inter.pos + 0.1 * inter.normal;
 		return inter;
 	}
 
