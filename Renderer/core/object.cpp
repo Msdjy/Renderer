@@ -17,7 +17,7 @@ Intersection Sphere::intersect(const vec3& eye, const vec3& dir)const {
 	float b24ac = sqrt(b * b - 4 * a * c);
 	float t1 = (-b + b24ac) / 2 / a;
 	float t0 = (-b - b24ac) / 2 / a;
-	
+	if (t0 < 0)t0 = t1;
 	// offset the original point by .001 to avoid occlusion by the object itself
 	if (t0 > .1) {
 		inter.pos = eye + t0 * dir;
@@ -26,19 +26,8 @@ Intersection Sphere::intersect(const vec3& eye, const vec3& dir)const {
 		inter.is_intersect = true;
 		inter.material = material;
 		inter.emission = emission;
+		//inter.pos = inter.pos + 0.1 * inter.normal;
 		if (dot(dir, inter.normal) > 0)inter.normal = -inter.normal;
-		inter.pos = inter.pos + 0.1 * inter.normal;
-		return inter;
-	}
-	if (t1 > .1) {
-		inter.pos = eye + t1 * dir;
-		inter.normal = normalize(inter.pos - center);
-		inter.distance = t1;
-		inter.is_intersect = true;
-		inter.material = material;
-		inter.emission = emission;
-		if (dot(dir, inter.normal) > 0)inter.normal = -inter.normal;
-		inter.pos = inter.pos + 0.1 * inter.normal;
 		return inter;
 	}
 
@@ -65,13 +54,14 @@ float Sphere::getArea()const {
 }
 
 void Sphere::sample(Intersection& inter, float& pdf)const {
-	float theta = 2.0 * PI * get_random_float(), phi = PI * get_random_float();
-	vec3 dir(std::cos(phi), std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta));
-	inter.pos = center + radius * dir;
-	inter.normal = dir;
-	inter.emission = get_emmission();
-	//std::cout << inter.emission << std::endl;
-	pdf = 1.0f / getArea();
+		float theta = 2.0 * PI * get_random_float(), phi = PI * get_random_float();
+		vec3 dir(std::cos(phi), std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta));
+		inter.pos = center + radius * dir;
+		
+		inter.normal = dir;
+		inter.emission = get_emmission();
+		//std::cout << inter.emission << std::endl;
+		pdf = 1.0f / getArea();
 }
 
 

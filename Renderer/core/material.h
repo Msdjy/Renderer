@@ -1,7 +1,7 @@
 #pragma once
 #include"./maths.h"
 
-enum MaterialType { DIFFUSE, MICROFACET };
+enum MaterialType { DIFFUSE, MICROFACET, REFR, SPEC };
 
 class Material {
 public:
@@ -19,11 +19,10 @@ public:
 	vec3 albedo;
 
 	// phone模型所需的参数
-	//float albedo[4] = { 2,0,0,0 };
-	float specular_exponent = 0;
+	//float f4[4] = { 2,0,0,0 };
+	//float specular_exponent = 0;
 	Material() {};
 	Material(float ior, float roughness, float metallic, vec3 albedo, MaterialType t) :ior(ior), roughness(roughness), metallic(metallic), albedo(albedo), t(t) {
-		std::cout << albedo << std::endl;
 	};
 	vec3 eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal);
 	vec3 sample(const vec3& in_dir, const vec3& norma);

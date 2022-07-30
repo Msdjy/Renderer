@@ -34,8 +34,6 @@ class Sphere : public Object{
 public:
 	Sphere() {};
 	Sphere(float r, vec3 c, vec3 e, Material m) :radius(r), center(c), emission(e), material(m) {
-		//std::cout << m.albedo << std::endl;
-		std::cout << material.albedo << std::endl;
 	};
 	void get() {
 		std::cout << material.albedo<<" "<<material.roughness << std::endl;

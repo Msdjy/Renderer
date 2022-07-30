@@ -145,7 +145,6 @@ void Material::ImporttanceSampleGGX(const vec3& normal,const vec3& in_dir, vec3&
     float r1 = get_random_float();
     float r2 = get_random_float();
 
-
     float alpha2 = pow(roughness, 4);
 
     float phi = 2 * PI * r1;

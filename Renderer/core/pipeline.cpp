@@ -303,38 +303,40 @@ vec3 get_mapColor(vec3 dir) {
     return envmap[j * envmap_width + i];
 }
 
-
-static vec3 castRay_whited(const vec3& eye, const vec3& ray_dir, IShader* shader, const int depth = 0) {
-    
+// TODO Cornell Box场景有问题，球边缘的黑部分
+static vec3 castRay_whited(const vec3& eye, const vec3& ray_dir, IShader* shader, const int depth = 4) {
     vec3 color(0, 0, 0);
+    if (depth < 0){
+        //vec3 mapcolor = get_mapColor(ray_dir);
+        return color;
+    }
 
     Intersection inter = scene_intersect(eye, ray_dir, shader);
-    if (!inter.is_intersect || depth >= 4){
-        vec3 mapcolor = get_mapColor(ray_dir);
-        return mapcolor;
-    }
-
     vec3 reflect_color;
-    if (inter.material.albedo[2] != 0) {
+    {
         vec3 reflect_dir = normalize(reflect(ray_dir, inter.normal));
-        reflect_color = castRay_whited(inter.pos, reflect_dir, shader, depth + 1);
+        reflect_color = castRay_whited(inter.pos, reflect_dir, shader, depth - 1);
     }
     vec3 refract_color;
-    if (inter.material.albedo[3] != 0) {
+    {
+
         vec3 refract_dir = normalize(refract(ray_dir, inter.normal, inter.material.ior));
-        refract_color = castRay_whited(inter.pos, refract_dir, shader, depth + 1);
+        refract_color = castRay_whited(inter.pos, refract_dir, shader, depth - 1);
     }
    
     vec3 diffuse = inter.material.albedo;
-    vec3 amblient = diffuse * get_mapColor(inter.normal) * 0.1;
-    color += amblient;
+    //vec3 amblient = diffuse * get_mapColor(inter.normal) * 0.1;
+    //color += amblient;
 
     vec3 diffuse_f;
     vec3 sepcular_f;
     //light
     for (auto light : shader->payload_shader.lights) {
+        //std::cout << sepcular_f << "asd" << diffuse_f << std::endl;
+
+        if (dot(ray_dir, inter.normal) > 0)inter.normal = -inter.normal;
         vec3 light_dir = normalize(light->position - inter.pos);
-        if (scene_intersect(inter.pos, light_dir, shader).is_intersect)continue;
+        if (scene_intersect(inter.pos, light_dir, shader).distance < (light->position - inter.pos).norm())continue;
 
         vec3 half_dir = normalize(light_dir + -ray_dir);
 
@@ -343,16 +345,26 @@ static vec3 castRay_whited(const vec3& eye, const vec3& ray_dir, IShader* shader
 
         float diff = std::max(dot(light_dir, inter.normal), 0.0);
         diffuse_f += diff * attenuation * light->power;
-        //diffuse_f += diff * attenuation * light->power;
-
-        float spec = pow(std::max(dot(half_dir, inter.normal), 0.0), inter.material.specular_exponent);
+        float specf;
+        if (inter.material.t == SPEC)specf = 1425;
+        if (inter.material.t == REFR)specf = 125;
+        if (inter.material.t == DIFFUSE)specf = 10;
+        float spec = pow(std::max(dot(half_dir, inter.normal), 0.0), specf);
         sepcular_f += spec * attenuation* light->power;
-        //sepcular_f += spec * attenuation* light->power;
     }
-
-    color += (diffuse_f * inter.material.albedo[0] + sepcular_f * inter.material.albedo[1]) * diffuse
-           + reflect_color * inter.material.albedo[2] 
-           + refract_color * inter.material.albedo[3];
+    //Material      ivory = { 1.0, {0.9,  0.5, 0.1, 0.0}, {0.4, 0.4, 0.3},   50. };
+    //Material      glass = { 1.5, {0.0,  0.9, 0.1, 0.8}, {0.6, 0.7, 0.8},  125. };
+    //Material red_rubber = { 1.0, {1.4,  0.3, 0.0, 0.0}, {0.3, 0.1, 0.1},   10. };
+    //Material     mirror = { 1.0, {0.0, 16.0, 0.8, 0.0}, {1.0, 1.0, 1.0}, 1425. };
+    // 原本这里是用albedo的四个值来分配直接光diff和spec和反射光和折射光。
+    //
+    if (inter.material.t == SPEC) {
+        color += (diffuse_f * 0.0 + sepcular_f * 16.0) * diffuse + 0.8 * reflect_color +  0 * refract_color;
+    }
+    if (inter.material.t == REFR) {
+        color += (diffuse_f * 0.0 + sepcular_f * 0.9) * diffuse + 0.1 * reflect_color + 0.8 * refract_color;
+    }
+    if(inter.material.t == DIFFUSE)color += (diffuse_f * 1.4  + sepcular_f * 0.3) * diffuse;
     return color;
 }
 
@@ -393,10 +405,12 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
     if (!inter.is_intersect) {
         return vec3(0);
     }
+    
     // 光线直接看到的是光源
     if (inter.emission.norm_squared() > 1) {
         return inter.emission;
     }
+
 
     // 观察点到光源是否有遮挡
     // 无遮挡，光线cast直接得到光源颜色，这是直接光照
@@ -406,15 +420,19 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
     vec3 l_dir = inter_light.pos - inter.pos;
     vec3 light_dir = normalize(l_dir);
 
-    //if ( scene_intersect(inter.pos, light_dir, shader).distance - (inter_light.pos - inter.pos).norm() > -10) {
+    //if ( scene_intersect(inter.pos, light_dir, shader).distance - l_dir.norm() > -1e-1) {
     if (scene_intersect(inter.pos, light_dir, shader).emission.norm_squared() > 1) {
         color_dir = inter_light.emission
                     * inter.material.eval(dir, light_dir, inter.normal)
                     * dot(inter.normal, light_dir) // TODO 算能量算的是出射光看到的能量吗
                     // 球型光不能这样算 
-                    // * dot(inter_light.normal, -light_dir)
+                    * std::max(dot(inter_light.normal, -light_dir), 0.0)
                     * 1
                     / pdf_light / (l_dir).norm_squared();
+        //format(color_dir);
+        //for (int t = 0; t < 3; t++) {
+        //    if (color_dir[t] > 1)std::cout << "color_dir"<< color_dir << std::endl;
+        //}
     }
     
     // 蒙特卡洛，计算光线是否继续cast
@@ -423,12 +441,12 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
     // 这是间接光照
     vec3 sample_dir;
     float pdf;
-    //if (inter.material.roughness > 0.99 || inter.material.t == DIFFUSE) {
+    if (inter.material.roughness > 0.99 || inter.material.t == DIFFUSE) {
         sample_dir = inter.material.sample(dir, inter.normal);
         pdf = inter.material.pdf(dir, sample_dir, inter.normal);
-    //}// 重要性采样
+    }// 重要性采样
     // 镜面球还会有黑点
-    //else inter.material.ImporttanceSampleGGX(inter.normal, dir, sample_dir, pdf);
+    else inter.material.ImporttanceSampleGGX(inter.normal, dir, sample_dir, pdf);
 
     // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，亮点太多
     // 这个加不加都有白噪点
@@ -438,6 +456,10 @@ static vec3 castRay_pathTracing(const vec3& ori, const vec3& dir, IShader* shade
                 * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
                 / pdf
                 / RussianRoulette;
+    //for (int t = 0; t < 3; t++) {
+    //    if (color_indir[t] > 1)std::cout << "color_indir" << std::endl;
+    //}
+    //format(color_indir);
     //if (color_indir[0] < 0 || color_indir[1] < 0 || color_indir[2] < 0)std::cout << "asd" << std::endl;
     vec3 color = color_dir + color_indir;
     return color;
@@ -484,8 +506,7 @@ void ray_trace(unsigned char* framebuffer, IShader* shader) {
                
                 vec3 color;
                 for (int k = 0; k < spp; k++) {
-                    vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
-                    color += castColor;
+                    color += castRay_pathTracing(camera->eye, ray_dir, shader) / spp;
                 }
                 color = color / (float)spp;
 

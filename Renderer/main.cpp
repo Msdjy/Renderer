@@ -95,13 +95,13 @@ int main()
 	//light1->position = vec3(-20,20,20);
 	//light1->power = vec3(100,100,100);	
 
-	//Light* light2 = new Light;
-	//light2->position = vec3(30,50,-25);
-	//light2->power = vec3(20, 20,20);
+	Light* light2 = new Light;
+	light2->position = vec3(10,10,150);
+	light2->power = vec3(10, 10,10);
 
-	//Light* light3 = new Light;
-	//light3->position = vec3(30, 20, 30);
-	//light3->power = vec3(20, 20, 20);
+	Light* light3 = new Light;
+	light3->position = vec3(50, 65, 81.6);
+	light3->power = vec3(20, 20, 20);
 	
 
 
@@ -120,12 +120,12 @@ int main()
 	Material      Left     = { 30, 1, 0, vec3(0.63f, 0.065f, 0.05f),	DIFFUSE };
 	//Material      Right    = { 1.0, 1, 0, vec3(.25f,.25f,.75f),	MICROFACET };
 	Material      Right    = { 30, 1, 0, vec3(0.14f, 0.45f, 0.091f),	DIFFUSE };
-	Material	  Back	   = { 30, 1, 0, vec3(.9f,.9f,.9f),	DIFFUSE };
+	Material	  Back	   = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
 	Material	  Front	   = { 30, 1, 0, vec3(),				DIFFUSE };
 	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				DIFFUSE };
-	Material      Botm_Top = { 30, 1, 0, vec3(.9f,.9f,.9f),	DIFFUSE };
-	Material      Mirr	   = { 20, 0.2, 1, vec3(1,1,1) * .999, MICROFACET };
-	Material      Glas	   = { 20, 1, 0, vec3(0.2,1,1) * .999, MICROFACET };
+	Material      Botm_Top = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
+	Material      Mirr	   = { 20, 0.05, 1, vec3(1,1,1) * .999, MICROFACET };
+	Material      Glas	   = { 20, 0.05, 1, vec3(0.2,1,1) * .999, MICROFACET };
 	// Sphere(float r, vec3 c, vec3 emission, Material material)
 	Sphere spheres[] = {
 		// TODO 1e5会有奇怪的方框和圆形
@@ -137,7 +137,7 @@ int main()
 		Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
 		Sphere(16.5,vec3(27,16.5,47),          vec3(),			Mirr),//Mirr 
 		Sphere(16.5,vec3(73,16.5,78),          vec3(),			Glas),//Glas 
-		Sphere(5, vec3(50,75,81.6), vec3(30,30,30),  Front) //Lite 
+		Sphere(5, vec3(50,77,81.6), vec3(30,30,30),  Front2) //Lite 
 	};
 
 	// shader
@@ -148,8 +148,8 @@ int main()
 		shader->payload_shader.objects.push_back(&sphere);
 	}
 	//shader->payload_shader.lights.push_back(light1);
-	//shader->payload_shader.lights.push_back(light2);
-	//shader->payload_shader.lights.push_back(light3);
+	shader->payload_shader.lights.push_back(light2);
+	shader->payload_shader.lights.push_back(light3);
 	shader->payload_shader.camera = &camera;
 
 	shader->payload_shader.model_mat = model_mat;
