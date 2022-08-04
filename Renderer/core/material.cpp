@@ -5,13 +5,12 @@
 #include <iostream>
 
 
-static float FresnelSchlick(const vec3& H, const vec3& L, const float& F0) {
+static vec3 FresnelSchlick(const vec3& H, const vec3& L, const vec3& F0) {
     // TODO
     //float inter = 0.04f * (1 - metalness) + 0.96f * metalness;
-    float inter = F0;
     float cosTheta = dot(H, L);
 
-    return inter + (1.f - inter) * pow(1.f - cosTheta, 5.f);
+    return F0 + (1.f - F0) * pow(1.f - cosTheta, 5.f);
 }
 
 static float GeometrySchlickGGX(float NdotV, float k) {
@@ -22,6 +21,7 @@ static float GeometrySchlickGGX(float NdotV, float k) {
 
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
     float k = (roughness + 1) * (roughness + 1) / 8.0;
+    //float k = (roughness ) * (roughness) / 2;
     float NdotV = dot(N, V);
     float NdotL = dot(N, L);
 
@@ -34,7 +34,7 @@ float DistributionGGX(const vec3& N, const vec3& H, float roughness) {
     float NdotH = dot(N, H);
     float NdotH2 = NdotH * NdotH;
 
-    return alpha2 / PI / pow(NdotH2 * (alpha2 - 1) + 1, 2);
+    return alpha2 / PI / pow(NdotH2 * (alpha2 - 1.0) + 1.0, 2);
 }
 
 // TODO 
@@ -88,37 +88,35 @@ vec3 Material::eval(const vec3& in_dir, const vec3& out_dir, const vec3& normal)
                 vec3 H = normalize(V + L);
 
                 // 入射与出射的方向都要朝外
-                // float F = FresnelSchlick(wh, -wi, metallic);
                 float G = GeometrySmith(N, V, L, roughness);
                 float D = DistributionGGX(N, H, roughness);
 
                 // 计算 fresnel 系数: F
-                
-                float F0;
                 //fresnel(in_dir, N, ior, F0);
-                F0 = metallic;
-                float F = FresnelSchlick(H, L, F0);
+                vec3 F0 = vec3(0.04);
+                //F0 = mix(F0, albedo, metallic);
+                for (int i = 0; i < 3; i++) {
+                    F0[i] = std::lerp(F0[i], albedo[i], metallic);
+                }
+                
+                vec3 F = FresnelSchlick(H, V, F0);
 
                 // 能量守恒
-                float ks_ = F;
-                float kd_ = 1.0f - ks_;
-                vec3 diffuse = albedo * (1 - metallic);
-                vec3 specular;
-                for (int i = 0; i < 3; i++) {
-                    specular[i] = std::lerp(0.04f, albedo[i], metallic);
-                }
+                vec3 ks_ = F;
+                vec3 kd_ = 1.0f - ks_;
+                //更进一步来说，因为金属不会折射光线，因此不会有漫反射。所以如果表面是金属的，我们会把系数kD变为0
+                kd_ *= 1.0 - metallic;
                 float diff = 1.0 / PI;
 
                 float Ndotwi = std::max(dot(N, V), 0.0);
                 float Ndotwo = std::max(dot(N, L), 0.0);
 
-                float nominator = D * G * F;
+                vec3 nominator = D * G * F;
                 float denominator = 4 * Ndotwi * Ndotwo;
 
                 vec3 mirror_reflection = nominator / std::max(denominator, 0.001f);
-                //TODO 这边*diff的理解
-                return kd_ * diff * diffuse + ks_ * mirror_reflection * specular;
-                //return kd_ * diff * diffuse + ks_ * mirror_reflection * specular;
+
+                return kd_ * diff * albedo +  mirror_reflection;
             }
             else
                 return vec3(0.0f);

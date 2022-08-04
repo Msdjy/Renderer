@@ -124,8 +124,8 @@ int main()
 	Material	  Front	   = { 30, 1, 0, vec3(),				DIFFUSE };
 	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				DIFFUSE };
 	Material      Botm_Top = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
-	Material      Mirr	   = { 20, 0.05, 1, vec3(1,1,1) * .999, MICROFACET };
-	Material      Glas	   = { 20, 0.05, 1, vec3(0.2,1,1) * .999, MICROFACET };
+	Material      Mirr	   = { 20, 0.02, 1, vec3(1,0.86,0.57) * .999, MICROFACET };
+	Material      Glas	   = { 1.6, 0.02, 0.0, vec3(0.0,0.0,0.0) * .999, MICROFACET };
 	// Sphere(float r, vec3 c, vec3 emission, Material material)
 	Sphere spheres[] = {
 		// TODO 1e5会有奇怪的方框和圆形
@@ -136,8 +136,8 @@ int main()
 		Sphere(1e3, vec3(50, 1e3, 81.6),       vec3(),			Botm_Top),//Botm 
 		Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
 		Sphere(16.5,vec3(27,16.5,47),          vec3(),			Mirr),//Mirr 
-		Sphere(16.5,vec3(73,16.5,78),          vec3(),			Glas),//Glas 
-		Sphere(5, vec3(50,77,81.6), vec3(30,30,30),  Front2) //Lite 
+		Sphere(16.5,vec3(73,16.5,70),          vec3(),			Glas),//Glas 
+		Sphere(5, vec3(50,77,81.6), vec3(300,300,300),  Front2) //Lite 
 	};
 
 	// shader
