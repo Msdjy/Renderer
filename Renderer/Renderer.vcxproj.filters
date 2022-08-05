@@ -45,6 +45,9 @@
     <ClCompile Include="core\material.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="core\scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="platform\win32.h">
@@ -78,6 +81,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="core\material.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="core\scene.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

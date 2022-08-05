@@ -13,6 +13,9 @@ struct Intersection {
 	float distance;
 	bool is_intersect = false;
 	vec3 emission;
+
+
+
 };
 
 
@@ -28,6 +31,7 @@ public:
 	vec3 emission;
 	virtual vec3 get_emmission()const = 0;
 	virtual bool has_emmission()const = 0;
+
 };
 
 class Sphere : public Object{

@@ -1,6 +1,7 @@
 #pragma once
 //#include "./core/macro.h"
 #include "./core/pipeline.h"
+#include "./core/scene.h"
 #include "./core/camera.h"
 //#include "./core/model.h"
 #include "./core/tgaimage.h"
@@ -19,6 +20,8 @@
 //#include"scene.hpp"
 //#include"sphere.hpp"
 //#include"material.hpp"
+
+enum RenderType { RASTERIZER, RAYTRACING, PATHTRACING};
 
 
 
@@ -46,6 +49,7 @@ int main()
     memset(framebuffer, 0, sizeof(unsigned char) * width * height * 4);
 
 	// TODO
+	// 很耗内存
 	//int n = -1;
 	//unsigned char* pixmap = stbi_load("./image/envmap.jpg", &envmap_width, &envmap_height, &n, 0);
 	//if (!pixmap || 3 != n) {
@@ -72,51 +76,11 @@ int main()
 	float aspect = (float)(width) / height;
 	Camera camera(eye, target, up, aspect, fov);
 
-	// mvp
-	float zNear = -0.1;
-	float zFar = -50;
-	
-	mat4 model_mat		 = mat4_translate(0, 0, 0) ;
-	//mat4 model_mat		 = mat4::identity();
-	mat4 view_mat		 = mat4_lookat(camera.eye, camera.target, camera.up);
-	mat4 perspective_mat = mat4_perspective(fov, aspect, zNear, zFar);
-	
-	// znear大于zfar，top大于bottom
-	float top = tan(fov / 2.0f * PI / 180.0f) * abs(zNear);
-	float bottom = -top;
-	float right = top * aspect;
-	float left = -right;
-	mat4 ortho_mat = mat4_ortho(left, right, bottom, top, zNear, zFar);
-
-	perspective_mat = ortho_mat * perspective_mat;
-
-	// light
-	//Light* light1 = new Light;
-	//light1->position = vec3(-20,20,20);
-	//light1->power = vec3(100,100,100);	
-
-	Light* light2 = new Light;
-	light2->position = vec3(10,10,150);
-	light2->power = vec3(10, 10,10);
-
-	Light* light3 = new Light;
-	light3->position = vec3(50, 65, 81.6);
-	light3->power = vec3(20, 20, 20);
-	
-
-
 	// model
 	//Model* model = new Model("./objects/african_head/african_head.obj");
 
-
 	// sphere
-
-	//Object* sp1 = new Sphere(vec3(-3, 0, -16), 2, ivory);
-	//Object* sp2 = new Sphere(vec3(-1, -1.5, -12), 2, glass);
-	//Object* sp3 = new Sphere(vec3(1.5, -0.5, -18), 3, red_rubber);
-	//Object* sp4 = new Sphere(vec3(7, 5, -18), 4, mirror);
 	// Material(float ior, float roughness, float metallic, vec3 albedo, MaterialType t = DIFFUSE)
-	//Material      Left     = { 1.0, 1, 0, vec3(.75f,.25f,.25f),	MICROFACET };
 	Material      Left     = { 30, 1, 0, vec3(0.63f, 0.065f, 0.05f),	DIFFUSE };
 	//Material      Right    = { 1.0, 1, 0, vec3(.25f,.25f,.75f),	MICROFACET };
 	Material      Right    = { 30, 1, 0, vec3(0.14f, 0.45f, 0.091f),	DIFFUSE };
@@ -140,94 +104,202 @@ int main()
 		Sphere(5, vec3(50,77,81.6), vec3(300,300,300),  Front2) //Lite 
 	};
 
-	// shader
+	// 目前只用在RAYTRACING和光栅化作为点光源
+	Light* light1 = new Light;
+	light1->position = vec3(-20, 20, 20);
+	light1->power = vec3(100, 100, 100);
+
+	Light* light2 = new Light;
+	light2->position = vec3(10, 10, 150);
+	light2->power = vec3(10, 10, 10);
+
+	Light* light3 = new Light;
+	light3->position = vec3(50, 65, 81.6);
+	light3->power = vec3(20, 20, 20);
+
+	mat4 model_mat;
+	mat4 view_mat;
+	mat4 perspective_mat;
+
+	Scene scene;
+
 	IShader* shader = new BingPhoneShader();
-	// shader payload
-	// auto sphere : spheres TODO
-	for (auto &sphere : spheres) {
-		shader->payload_shader.objects.push_back(&sphere);
+
+
+	RenderType rt = PATHTRACING;
+	switch(rt) {
+		case RAYTRACING: {
+			// scene
+			for (auto& sphere : spheres) {
+				scene.add(&sphere);
+			}
+			scene.camera = &camera;
+			// light
+			scene.add(light1);
+			scene.add(light2);
+			scene.add(light3);
+			break;
+		}
+		case PATHTRACING: {
+			// scene
+			for (auto& sphere : spheres) {
+				scene.add(&sphere);
+			}
+			scene.camera = &camera;
+			break;
+		}
+		case RASTERIZER: {
+			// mvp
+			float zNear = -0.1;
+			float zFar = -50;
+
+			model_mat = mat4_translate(0, 0, 0);
+			//model_mat		 = mat4::identity();
+			view_mat = mat4_lookat(camera.eye, camera.target, camera.up);
+			perspective_mat = mat4_perspective(fov, aspect, zNear, zFar);
+
+			// znear大于zfar，top大于bottom
+			float top = tan(fov / 2.0f * PI / 180.0f) * abs(zNear);
+			float bottom = -top;
+			float right = top * aspect;
+			float left = -right;
+			mat4 ortho_mat = mat4_ortho(left, right, bottom, top, zNear, zFar);
+			perspective_mat = ortho_mat * perspective_mat;
+
+			// shader payload
+			// auto sphere : spheres TODO
+			for (auto& sphere : spheres) {
+				shader->payload_shader.objects.push_back(&sphere);
+			}
+			shader->payload_shader.lights.push_back(light1);
+			shader->payload_shader.lights.push_back(light2);
+			shader->payload_shader.lights.push_back(light3);
+			shader->payload_shader.camera = &camera;
+
+			shader->payload_shader.model_mat = model_mat;
+			shader->payload_shader.view_mat = view_mat;
+			shader->payload_shader.perspective_mat = perspective_mat;
+			shader->payload_shader.vp_mat = perspective_mat * view_mat;
+			Model* model = new Model("./objects/african_head/african_head.obj");
+			shader->payload_shader.model = model;
+			break;
+		}
 	}
-	//shader->payload_shader.lights.push_back(light1);
-	shader->payload_shader.lights.push_back(light2);
-	shader->payload_shader.lights.push_back(light3);
-	shader->payload_shader.camera = &camera;
-
-	shader->payload_shader.model_mat = model_mat;
-	shader->payload_shader.view_mat = view_mat;
-	shader->payload_shader.perspective_mat = perspective_mat;
-	shader->payload_shader.vp_mat = perspective_mat * view_mat;
-
-	//shader->payload_shader.model = model;
-	//shader->payload_shader.diffuse_map = model->diffuse();
-
-	// 多spp输出图片
-	//{
-	//	ray_trace_getimage(framebuffer, shader);
-
-	//	FILE* fp = fopen("binary.ppm", "wb");
-	//	(void)fprintf(fp, "P6\n%d %d\n255\n", WINDOW_WIDTH, WINDOW_HEIGHT);
-	//	for (int y = 0; y < WINDOW_HEIGHT; y++) {
-	//		for (int x = 0; x < WINDOW_WIDTH; x++) {
-	//			int index = (y * WINDOW_WIDTH + x) * 4;
-	//			static unsigned char color[3];
-	//			for (int i = 0; i < 3; i++) {
-	//				color[i] = framebuffer[index + i];
-	//			}
-	//			fwrite(color, 1, 3, fp);
-	//		}
-	//	}
-
-	//	fclose(fp);
-
-	//	return 0;
-	//}
-
-
 
 
 	// render loop
 	// -----------
 	int num_frames = 0;
 	float print_time = platform_get_time();
-	while (!window->is_close)
-	{
-		float curr_time = platform_get_time();
 
-		// clear buffer
-		clear_framebuffer(width, height, framebuffer);
-		clear_zbuffer(width, height, zbuffer);
-		
-		
-		// 
-		// handle events and update view, perspective matrix
-		handle_events(camera);
-		update_matrix(camera, view_mat, perspective_mat, shader);
-		//std::cout << camera.eye << std::endl;
+	switch (rt) {
+		case RAYTRACING: {
+			while (!window->is_close)
+			{
+				float curr_time = platform_get_time();
 
+				// clear buffer
+				clear_framebuffer(width, height, framebuffer);
+				clear_zbuffer(width, height, zbuffer);
 
-		//model_draw(framebuffer, zbuffer, shader);
-		ray_trace(framebuffer, shader);
+				ray_trace(framebuffer, scene);
 
+				// calculate and display FPS
+				num_frames += 1;
+				if (curr_time - print_time >= 1) {
+					int sum_millis = (int)((curr_time - print_time) * 1000);
+					int avg_millis = sum_millis / num_frames;
+					printf("fps: %3d, avg: %3d ms\n", num_frames, avg_millis);
+					num_frames = 0;
+					print_time = curr_time;
+				}
 
-		// calculate and display FPS
-		num_frames += 1;
-		if (curr_time - print_time >= 1) {
-			int sum_millis = (int)((curr_time - print_time) * 1000);
-			int avg_millis = sum_millis / num_frames;
-			printf("fps: %3d, avg: %3d ms\n", num_frames, avg_millis);
-			num_frames = 0;
-			print_time = curr_time;
+				// reset mouse information
+				window->mouse_info.wheel_delta = 0;
+				window->mouse_info.orbit_delta = vec2(0, 0);
+				window->mouse_info.fv_delta = vec2(0, 0);
+
+				// send framebuffer to window 
+				window_draw(framebuffer);
+				msg_dispatch();
+			}
+			break;
 		}
+		case PATHTRACING: {
+			while (!window->is_close)
+			{
+				float curr_time = platform_get_time();
 
-		// reset mouse information
-		window->mouse_info.wheel_delta = 0;
-		window->mouse_info.orbit_delta = vec2(0, 0);
-		window->mouse_info.fv_delta = vec2(0, 0);
+				// clear buffer
+				clear_framebuffer(width, height, framebuffer);
+				clear_zbuffer(width, height, zbuffer);
 
-		// send framebuffer to window 
-		window_draw(framebuffer);
-		msg_dispatch();
+
+				path_trace(framebuffer, scene);
+
+
+				// calculate and display FPS
+				num_frames += 1;
+				if (curr_time - print_time >= 1) {
+					int sum_millis = (int)((curr_time - print_time) * 1000);
+					int avg_millis = sum_millis / num_frames;
+					printf("fps: %3d, avg: %3d ms\n", num_frames, avg_millis);
+					num_frames = 0;
+					print_time = curr_time;
+				}
+
+				// reset mouse information
+				window->mouse_info.wheel_delta = 0;
+				window->mouse_info.orbit_delta = vec2(0, 0);
+				window->mouse_info.fv_delta = vec2(0, 0);
+
+				// send framebuffer to window 
+				window_draw(framebuffer);
+				msg_dispatch();
+			}
+			break;
+		}
+		case RASTERIZER: {
+			while (!window->is_close)
+			{
+				float curr_time = platform_get_time();
+
+				// clear buffer
+				clear_framebuffer(width, height, framebuffer);
+				clear_zbuffer(width, height, zbuffer);
+
+
+				// handle events and update view, perspective matrix
+				handle_events(camera);
+				update_matrix(camera, view_mat, perspective_mat, shader);
+
+				model_draw(framebuffer, zbuffer, shader);
+
+
+				// calculate and display FPS
+				num_frames += 1;
+				if (curr_time - print_time >= 1) {
+					int sum_millis = (int)((curr_time - print_time) * 1000);
+					int avg_millis = sum_millis / num_frames;
+					printf("fps: %3d, avg: %3d ms\n", num_frames, avg_millis);
+					num_frames = 0;
+					print_time = curr_time;
+				}
+
+				// reset mouse information
+				window->mouse_info.wheel_delta = 0;
+				window->mouse_info.orbit_delta = vec2(0, 0);
+				window->mouse_info.fv_delta = vec2(0, 0);
+
+				// send framebuffer to window 
+				window_draw(framebuffer);
+				msg_dispatch();
+			}
+			break;
+
+		}
 	}
+	
 
 
 

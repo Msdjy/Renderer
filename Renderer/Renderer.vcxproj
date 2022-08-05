@@ -139,6 +139,7 @@
     <ClCompile Include="core\model.cpp" />
     <ClCompile Include="core\object.cpp" />
     <ClCompile Include="core\pipeline.cpp" />
+    <ClCompile Include="core\scene.cpp" />
     <ClCompile Include="core\tgaimage.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="platform\win32.cpp" />
@@ -152,6 +153,7 @@
     <ClInclude Include="core\model.h" />
     <ClInclude Include="core\object.h" />
     <ClInclude Include="core\pipeline.h" />
+    <ClInclude Include="core\scene.h" />
     <ClInclude Include="core\tgaimage.h" />
     <ClInclude Include="platform\win32.h" />
     <ClInclude Include="resource.h" />

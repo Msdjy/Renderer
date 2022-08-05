@@ -1,7 +1,7 @@
 #pragma once
 #include "./shader.h"
 
-vec3 texture_sample(vec2 uv, TGAImage* image)
+vec3 texture_sample(vec2 uv, const TGAImage* image)
 {
 	uv[0] = fmod(uv[0], 1);
 	uv[1] = fmod(uv[1], 1);
@@ -69,7 +69,7 @@ vec3 BingPhoneShader::fragment_shader(float alpha, float beta, float gamma) {
 	vec3 view_dir = normalize(view_pos - position);
 	
  
-	vec3 diffuse = texture_sample(texcoords, &payload_shader.diffuse_map);
+	vec3 diffuse = texture_sample(texcoords, &payload_shader.model->diffuse());
 	//std::cout << texcoords << std::endl;
 
 	vec3 color(0,0,0);
