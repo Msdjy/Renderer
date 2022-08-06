@@ -82,26 +82,36 @@ int main()
 	// sphere
 	// Material(float ior, float roughness, float metallic, vec3 albedo, MaterialType t = DIFFUSE)
 	Material      Left     = { 30, 1, 0, vec3(0.63f, 0.065f, 0.05f),	DIFFUSE };
-	//Material      Right    = { 1.0, 1, 0, vec3(.25f,.25f,.75f),	MICROFACET };
 	Material      Right    = { 30, 1, 0, vec3(0.14f, 0.45f, 0.091f),	DIFFUSE };
 	Material	  Back	   = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
 	Material	  Front	   = { 30, 1, 0, vec3(),				DIFFUSE };
 	Material	  Front2   = { 1.0, 1, 0, vec3(.5f,.5f,.5f),				DIFFUSE };
 	Material      Botm_Top = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
-	Material      Mirr	   = { 20, 0.02, 1, vec3(1,0.86,0.57) * .999, MICROFACET };
-	Material      Glas	   = { 1.6, 0.02, 0.0, vec3(0.0,0.0,0.0) * .999, MICROFACET };
-	// Sphere(float r, vec3 c, vec3 emission, Material material)
+	Material      Mirr	   = { 20, 0.05, 1, vec3(1,0.86,0.57) * .999, MICROFACET };
+	Material      Glas	   = { 1.6, 0.05, 0.0, vec3(0.0,0.02,0.02) * .999, MICROFACET };
+	
 	Sphere spheres[] = {
+		// Sphere(float r, vec3 c, vec3 emission, Material material)
 		// TODO 1e5会有奇怪的方框和圆形
 		Sphere(1e3, vec3(1e3 + 1,40.8,81.6),   vec3(),			Left),//Left 
 		Sphere(1e3, vec3(-1e3 + 99,40.8,81.6), vec3(),			Right),//Rght 
 		Sphere(1e3, vec3(50,40.8, 1e3),        vec3(),			Back),//Back 
 		Sphere(1e3, vec3(50,40.8,-1e3 + 170),  vec3(),			Front),//Frnt 
 		Sphere(1e3, vec3(50, 1e3, 81.6),       vec3(),			Botm_Top),//Botm 
-		Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
+		//Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
 		Sphere(16.5,vec3(27,16.5,47),          vec3(),			Mirr),//Mirr 
 		Sphere(16.5,vec3(73,16.5,70),          vec3(),			Glas),//Glas 
-		Sphere(5, vec3(50,77,81.6), vec3(300,300,300),  Front2) //Lite 
+		//Sphere(5, vec3(50,77,81.6), vec3(300,300,300),  Front2) //Lite 
+	};
+	float slen = 10;
+	Triangle triangles[] = {
+		// Triangle(vec3 v0, vec3 v1, vec3 v2, vec3 e, Material m) :Object(e, m), v0(v0), v1(v1), v2(v2) {
+		Triangle(vec3(50 + slen, 81.59, 80 - slen), vec3(50 + slen, 81.59, 80 + slen), vec3(50 - slen, 81.59, 80 - slen), vec3(100,100,100), Front2),
+		Triangle(vec3(50 - slen, 81.59, 80 + slen), vec3(50 - slen, 81.59, 80 - slen), vec3(50 + slen, 81.59, 80 + slen), vec3(100,100,100), Front2),
+		//Triangle(vec3(50 + slen, 81.59, 80 - slen), vec3(50 + slen, 81.59, 80 + slen), vec3(50 - slen, 81.59, 80 - slen), vec3(100,100,100), Front2),
+		//Triangle(vec3(50 - slen, 81.59, 80 + slen), vec3(50 - slen, 81.59, 80 - slen), vec3(50 + slen, 81.59, 80 + slen), vec3(100,100,100), Front2),
+		Triangle(vec3(99, 81.6, 0), vec3(99, 81.6, 170), vec3(1, 81.6, 0), vec3(0), Botm_Top),
+		Triangle(vec3(1, 81.6, 170), vec3(1, 81.6, 0), vec3(99, 81.6, 170), vec3(0), Botm_Top),
 	};
 
 	// 目前只用在RAYTRACING和光栅化作为点光源
@@ -120,11 +130,11 @@ int main()
 	mat4 model_mat;
 	mat4 view_mat;
 	mat4 perspective_mat;
+	
 
 	Scene scene;
 
 	IShader* shader = new BingPhoneShader();
-
 
 	RenderType rt = PATHTRACING;
 	switch(rt) {
@@ -144,6 +154,9 @@ int main()
 			// scene
 			for (auto& sphere : spheres) {
 				scene.add(&sphere);
+			}
+			for (auto& triangle : triangles) {
+				scene.add(&triangle);
 			}
 			scene.camera = &camera;
 			break;
@@ -186,6 +199,28 @@ int main()
 		}
 	}
 
+	//// 多spp输出图片
+	//{
+	//	path_trace_getimage(framebuffer, scene);
+
+	//	FILE* fp = fopen("binary.ppm", "wb");
+	//	(void)fprintf(fp, "P6\n%d %d\n255\n", WINDOW_WIDTH, WINDOW_HEIGHT);
+	//	for (int y = 0; y < WINDOW_HEIGHT; y++) {
+	//		for (int x = 0; x < WINDOW_WIDTH; x++) {
+	//			int index = (y * WINDOW_WIDTH + x) * 4;
+	//			static unsigned char color[3];
+	//			for (int i = 0; i < 3; i++) {
+	//				color[i] = framebuffer[index + i];
+	//			}
+	//			fwrite(color, 1, 3, fp);
+	//		}
+	//	}
+
+	//	fclose(fp);
+
+	//	return 0;
+	//}
+	
 
 	// render loop
 	// -----------

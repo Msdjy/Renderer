@@ -324,7 +324,6 @@ void path_trace(unsigned char* framebuffer, Scene scene) {
                 for (int k = 0; k < spp; k++) {
                     color += scene.castRay_pathTracing(camera->eye, ray_dir) / spp;
                 }
-                color = color / (float)spp;
 
                 color = HDR_ReinhardMap(color);
 
@@ -435,93 +434,74 @@ void ray_trace(unsigned char* framebuffer, Scene scene) {
 //
 //
 //// TODO static 有问题
-//void ray_trace_getimage(unsigned char* framebuffer, IShader* shader) {
-//    Camera* camera = shader->payload_shader.camera;
-//
-//    //// 屏幕遍历左下角开始
-//    //for (int i = 0; i < WINDOW_HEIGHT; i++) {
-//    //    for (int j = 0; j < WINDOW_WIDTH; j++) {
-//    //        float u = ((float)j + 0.5f) / WINDOW_WIDTH;
-//    //        float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
-//    //        //std::cout << camera->left_top_dir << std::endl;
-//    //        vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
-//    //                                                                                                + v * camera->vertical * camera->vertical_len);
-//    //        //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
-//    //        vec3 color = castRay(camera->eye, ray_dir, shader);
-//    //        // color
-//    //        unsigned char c[3];
-//    //        for (int t = 0; t < 3; t++)
-//    //        {
-//    //            c[t] = (int)float_clamp(color[t]  * 255, 0, 255);
-//    //        }
-//    //        set_color(framebuffer, j, i, c);
-//    //    }
-//    //}
-//
-//    int spp = 16;
-//    // 多线程 // 为啥我这只有两倍差距
-//    int process = 0;
-//    auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
-//    {
-//        for (uint32_t i = rowStart; i < rowEnd; ++i) {
-//            for (uint32_t j = colStart; j < colEnd; ++j) {
-//                float u = ((float)j + 0.5f) / WINDOW_WIDTH;
-//                float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
-//                //std::cout << camera->left_top_dir << std::endl;
-//                vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
-//                    + v * camera->vertical * camera->vertical_len);
-//                vec3 color;
-//                for (int k = 0; k < spp; k++) {
-//                    vec3 castColor = castRay_pathTracing(camera->eye, ray_dir, shader);
-//                    color += castColor;
-//                }
-//                color = color / (float)spp;
-//
-//
-//                const float gamma = 2.2;
-//                vec3 hdrColor = color;
-//
-//                // Reinhard色调映射
-//                vec3 mapped;
-//                for (int w = 0; w < 3; w++) {
-//                    mapped[w] = hdrColor[w] / (hdrColor[w] + 1.0f);
-//                    mapped[w] = std::pow(mapped[w], 1.0 / gamma);
-//                }
-//                color = mapped;
-//
-//
-//
-//                // color
-//                unsigned char c[3];
-//                for (int t = 0; t < 3; t++)
-//                {
-//                    c[t] = (int)float_clamp(color[t] * 255, 0, 255);
-//                }
-//                set_color(framebuffer, j, i, c);
-//                process++;
-//            }
-//            // 互斥锁，用于打印处理进程
-//            std::lock_guard<std::mutex> g1(mutex_ins);
-//            UpdateProgress(1.0 * process / WINDOW_WIDTH / WINDOW_HEIGHT);
-//        }
-//    };
-//    int id = 0;
-//    constexpr int bx = 5;
-//    constexpr int by = 5;
-//    std::thread th[bx * by];
-//    int strideX = (WINDOW_HEIGHT + 1) / bx;
-//    int strideY = (WINDOW_WIDTH + 1) / by;
-//
-//    // 分块计算光线追踪
-//    for (int i = 0; i < WINDOW_HEIGHT; i += strideX)
-//    {
-//        for (int j = 0; j < WINDOW_WIDTH; j += strideY)
-//        {
-//            th[id] = std::thread(castRayMultiThreading, i, std::min(i + strideX, WINDOW_HEIGHT), j, std::min(j + strideY, WINDOW_WIDTH));
-//            id++;
-//        }
-//    }
-//
-//    for (int i = 0; i < bx * by; i++) th[i].join();
-//    UpdateProgress(1.f);
-//}
+void path_trace_getimage(unsigned char* framebuffer, Scene scene) {
+    Camera* camera = scene.camera;
+
+    //// 屏幕遍历左下角开始
+    //for (int i = 0; i < WINDOW_HEIGHT; i++) {
+    //    for (int j = 0; j < WINDOW_WIDTH; j++) {
+    //        float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+    //        float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+    //        //std::cout << camera->left_top_dir << std::endl;
+    //        vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+    //                                                                                                + v * camera->vertical * camera->vertical_len);
+    //        //std::cout << ray_dir<<" "<< camera->left_top_dir <<" asd "<<tan(45.0f / 180.0f * PI) << std::endl;
+    //        vec3 color = castRay(camera->eye, ray_dir, shader);
+    //        // color
+    //        unsigned char c[3];
+    //        for (int t = 0; t < 3; t++)
+    //        {
+    //            c[t] = (int)float_clamp(color[t]  * 255, 0, 255);
+    //        }
+    //        set_color(framebuffer, j, i, c);
+    //    }
+    //}
+
+    int spp = 16;
+    // 多线程 // 为啥我这只有两倍差距
+    int process = 0;
+    auto castRayMultiThreading = [&](uint32_t rowStart, uint32_t rowEnd, uint32_t colStart, uint32_t colEnd)
+    {
+        for (uint32_t i = rowStart; i < rowEnd; ++i) {
+            for (uint32_t j = colStart; j < colEnd; ++j) {
+                float u = ((float)j + 0.5f) / WINDOW_WIDTH;
+                float v = ((float)i + 0.5f) / WINDOW_HEIGHT;
+
+                vec3 ray_dir = normalize(camera->left_top_dir - camera->vertical * camera->vertical_len + u * camera->horizontal * camera->horizontal_len
+                    + v * camera->vertical * camera->vertical_len);
+
+                vec3 color;
+                for (int k = 0; k < spp; k++) {
+                    color += scene.castRay_pathTracing(camera->eye, ray_dir) / spp;
+                }
+
+                color = HDR_ReinhardMap(color);
+
+                set_color(framebuffer, j, i, color);
+                process++;
+            }
+            // 互斥锁，用于打印处理进程
+            std::lock_guard<std::mutex> g1(mutex_ins);
+            UpdateProgress(1.0 * process / WINDOW_WIDTH / WINDOW_HEIGHT);
+        }
+    };
+    int id = 0;
+    constexpr int bx = 5;
+    constexpr int by = 5;
+    std::thread th[bx * by];
+    int strideX = (WINDOW_HEIGHT + 1) / bx;
+    int strideY = (WINDOW_WIDTH + 1) / by;
+
+    // 分块计算光线追踪
+    for (int i = 0; i < WINDOW_HEIGHT; i += strideX)
+    {
+        for (int j = 0; j < WINDOW_WIDTH; j += strideY)
+        {
+            th[id] = std::thread(castRayMultiThreading, i, std::min(i + strideX, WINDOW_HEIGHT), j, std::min(j + strideY, WINDOW_WIDTH));
+            id++;
+        }
+    }
+
+    for (int i = 0; i < bx * by; i++) th[i].join();
+    UpdateProgress(1.f);
+}

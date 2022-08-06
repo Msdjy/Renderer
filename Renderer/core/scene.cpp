@@ -165,7 +165,6 @@ vec3 Scene::castRay_pathTracing(const vec3& ori, const vec3& dir, const int dept
         return inter.emission;
     }
 
-
     // 观察点到光源是否有遮挡
     // 无遮挡，光线cast直接得到光源颜色，这是直接光照
     float pdf_light;
@@ -175,16 +174,17 @@ vec3 Scene::castRay_pathTracing(const vec3& ori, const vec3& dir, const int dept
     vec3 light_dir = normalize(l_dir);
 
     //if ( scene_intersect(inter.pos, light_dir, shader).distance - l_dir.norm() > -1e-1) {
-    if (scene_intersect(inter.pos, light_dir).emission.norm_squared() > 1) {
+    if (scene_intersect(inter.pos, light_dir).emission.norm_squared() > 1 && (l_dir).norm_squared() > 0.01 && pdf_light > EPSILON) {
         color_dir = inter_light.emission
             * inter.material.eval(dir, light_dir, inter.normal)
             * dot(inter.normal, light_dir) // TODO 算能量算的是出射光看到的能量吗
             // 球型光不能这样算 
             * std::max(dot(inter_light.normal, -light_dir), 0.0)
+            //* std::max(dot(inter_light.normal, -light_dir), 0.0)
             * 1
             / pdf_light / (l_dir).norm_squared();
-
     }
+    //if (color_dir.norm() > vec3(1).norm())color_dir = vec3(1);
 
     // 蒙特卡洛，计算光线是否继续cast
     if (get_random_float() > RussianRoulette)
@@ -198,10 +198,9 @@ vec3 Scene::castRay_pathTracing(const vec3& ori, const vec3& dir, const int dept
     }// 重要性采样
     // 镜面球还会有黑点
     else inter.material.ImporttanceSampleGGX(inter.normal, dir, sample_dir, pdf);
-
+    
     // 如果采样方向是光源，就舍弃这一次间接光，因为作为直接光照以及计算过了，亮点太多
-    // 这个加不加都有白噪点
-    if (scene_intersect(inter.pos, sample_dir).emission.norm_squared() > 1)return color_dir;
+    if (scene_intersect(inter.pos, sample_dir).emission.norm_squared() > 1 || pdf < EPSILON)return color_dir;
     color_indir = castRay_pathTracing(inter.pos, sample_dir, depth - 1)
         * inter.material.eval(dir, sample_dir, inter.normal)
         * dot(inter.normal, sample_dir) // TODO 算能量算的是出射光看到的能量吗
@@ -209,5 +208,6 @@ vec3 Scene::castRay_pathTracing(const vec3& ori, const vec3& dir, const int dept
         / RussianRoulette;
 
     vec3 color = color_dir + color_indir;
+    //if (color.norm() > vec3(1).norm())color = vec3(1);
     return color;
 }

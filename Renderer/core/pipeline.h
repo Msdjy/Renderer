@@ -62,6 +62,7 @@ void model_draw(unsigned char* framebuffer, float* zbuffer, IShader* shader);
 
 void ray_trace(unsigned char* framebuffer, Scene scene);
 void path_trace(unsigned char* framebuffer, Scene scene);
+void path_trace_getimage(unsigned char* framebuffer, Scene scene);
 void ray_trace_getimage(unsigned char* framebuffer, Scene scene);
 
 
