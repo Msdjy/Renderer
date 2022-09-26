@@ -69,7 +69,7 @@ int main()
 
 	// create camera
 	vec3 eye(50, 40, 168);
-	vec3 target(0, 0, -1);
+	vec3 target(0, 0, -5);
 	target = eye + target;
 	vec3 up(0, 1, 0);
 	float fov = 60;
@@ -89,6 +89,7 @@ int main()
 	Material      Botm_Top = { 30, 1, 0, vec3(0.4f,0.2f,0.2f),	DIFFUSE };
 	Material      Mirr	   = { 20, 0.05, 1, vec3(1,0.86,0.57) * .999, MICROFACET };
 	Material      Glas	   = { 1.6, 0.05, 0.0, vec3(0.0,0.02,0.02) * .999, MICROFACET };
+	Material      Glas2	   = { 1.6, 0.05, 0.0, vec3(0.0,0.00,0.00) * .999, MICROFACET };
 	
 	Sphere spheres[] = {
 		// Sphere(float r, vec3 c, vec3 emission, Material material)
@@ -100,7 +101,8 @@ int main()
 		Sphere(1e3, vec3(50, 1e3, 81.6),       vec3(),			Botm_Top),//Botm 
 		//Sphere(1e3, vec3(50, -1e3 + 81.6,81.6), vec3(),			Botm_Top),//Top 
 		Sphere(16.5,vec3(27,16.5,47),          vec3(),			Mirr),//Mirr 
-		Sphere(16.5,vec3(73,16.5,70),          vec3(),			Glas),//Glas 
+		Sphere(8,vec3(73,8,70),          vec3(),			Glas),//Glas 
+		Sphere(8,vec3(50,8,70),          vec3(),			Glas2),//Glas 
 		//Sphere(5, vec3(50,77,81.6), vec3(300,300,300),  Front2) //Lite 
 	};
 	float slen = 10;
@@ -136,7 +138,7 @@ int main()
 
 	IShader* shader = new BingPhoneShader();
 
-	RenderType rt = PATHTRACING;
+	RenderType rt = RASTERIZER;
 	switch(rt) {
 		case RAYTRACING: {
 			// scene
@@ -165,8 +167,9 @@ int main()
 			// mvp
 			float zNear = -0.1;
 			float zFar = -50;
-
-			model_mat = mat4_translate(0, 0, 0);
+			vec3 model_translate = camera.eye + vec3(0, 0, -5);
+			model_mat = mat4_translate(model_translate.x(), model_translate.y(), model_translate.z());
+			//model_mat = mat4_translate(0, 0, 0);
 			//model_mat		 = mat4::identity();
 			view_mat = mat4_lookat(camera.eye, camera.target, camera.up);
 			perspective_mat = mat4_perspective(fov, aspect, zNear, zFar);
